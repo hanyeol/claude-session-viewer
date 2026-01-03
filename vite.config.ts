@@ -20,9 +20,13 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/ws': {
-        target: `ws://localhost:${serverPort}`,
+        target: `http://localhost:${serverPort}`,
         ws: true,
+        changeOrigin: true,
       },
     },
+  },
+  define: {
+    'import.meta.env.VITE_API_PORT': JSON.stringify(serverPort.toString()),
   },
 })

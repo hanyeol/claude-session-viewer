@@ -387,7 +387,7 @@ server.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, repl
 
 // WebSocket: Watch for file changes
 server.register(async function (fastify) {
-  fastify.get('/ws', { websocket: true }, (socket, req) => {
+  fastify.get('/ws', { websocket: true }, (socket) => {
     const projectsDir = join(CLAUDE_DIR, 'projects')
 
     const watcher = chokidar.watch(projectsDir, {
@@ -396,15 +396,23 @@ server.register(async function (fastify) {
     })
 
     watcher.on('add', (path) => {
-      socket.send(JSON.stringify({ type: 'file_added', path }))
+      socket.send(JSON.stringify({ type: 'file-added', path }))
     })
 
     watcher.on('change', (path) => {
-      socket.send(JSON.stringify({ type: 'file_changed', path }))
+      socket.send(JSON.stringify({ type: 'file-changed', path }))
+    })
+
+    watcher.on('unlink', (path) => {
+      socket.send(JSON.stringify({ type: 'file-deleted', path }))
     })
 
     socket.on('close', () => {
       watcher.close()
+    })
+
+    socket.on('error', (err: Error) => {
+      console.error('WebSocket error:', err)
     })
   })
 })

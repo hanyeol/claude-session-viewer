@@ -114,7 +114,7 @@ export default function ProjectGroup({
                         )}
                       </div>
                       <div className="text-xs text-gray-400">
-                        {format(new Date(agentSession.timestamp), 'HH:mm:ss')}
+                        {format(new Date(agentSession.timestamp), 'PPpp')}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {agentSession.messageCount} message{agentSession.messageCount !== 1 ? 's' : ''}

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import SessionList from './components/SessionList'
 import SessionDetail from './components/SessionDetail'
 
@@ -27,7 +27,7 @@ interface ProjectGroup {
 function AppContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['sessions'],
     queryFn: async () => {
       const response = await fetch('/api/sessions')
@@ -35,6 +35,68 @@ function AppContent() {
       return response.json() as Promise<{ projects: ProjectGroup[] }>
     },
   })
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/ws`
+    let ws: WebSocket | null = null
+    let closeAfterOpen = false
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    let shouldReconnect = true
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl)
+      closeAfterOpen = false
+
+      ws.onopen = () => {
+        if (closeAfterOpen) {
+          ws?.close()
+          return
+        }
+        retryCount = 0
+      }
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data)
+        if (message.type === 'file-added' || message.type === 'file-changed' || message.type === 'file-deleted') {
+          // Refetch session list
+          refetch()
+
+          // If a session is selected, also refetch its details
+          if (selectedSessionId) {
+            queryClient.invalidateQueries({ queryKey: ['session', selectedSessionId] })
+          }
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+
+      ws.onclose = () => {
+        if (!shouldReconnect) return
+        const delayMs = Math.min(1000 * 2 ** retryCount, 10000)
+        retryCount += 1
+        reconnectTimeout = setTimeout(connect, delayMs)
+      }
+    }
+
+    connect()
+
+    return () => {
+      shouldReconnect = false
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout)
+      }
+      if (ws && ws.readyState === WebSocket.CONNECTING) {
+        closeAfterOpen = true
+      } else {
+        ws?.close()
+      }
+    }
+  }, [refetch, selectedSessionId])
 
   if (isLoading) {
     return (
