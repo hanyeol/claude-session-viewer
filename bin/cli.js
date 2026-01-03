@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {
   console.log(
     [
-      "Claude Code Session Viewer",
+      "Claude Session Viewer",
       "",
       "Usage:",
       "  npx claude-session-viewer",

@@ -119,7 +119,7 @@ function AppContent() {
       {/* Sidebar */}
       <div className="w-80 border-r border-gray-700 overflow-y-auto">
         <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">Claude Code Sessions</h1>
+          <h1 className="text-xl font-bold">Claude Sessions</h1>
           <p className="text-sm text-gray-400 mt-1">
             {data?.projects.length || 0} project{data?.projects.length !== 1 ? 's' : ''}
           </p>

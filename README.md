@@ -1,6 +1,6 @@
 # Claude Session Viewer
 
-A web-based tool to visualize Claude Code session history from your local `.claude` directory in a timeline format.
+A web-based tool to visualize Claude session history from your local `.claude` directory in a timeline format.
 
 ## Getting Started
 
