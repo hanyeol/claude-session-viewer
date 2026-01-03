@@ -1,93 +1,79 @@
 # Claude Code Session Viewer
 
-웹 타임라인 형태로 로컬 PC의 `.claude` 디렉토리 세션 기록을 시각화하는 도구입니다.
+A web-based tool to visualize Claude Code session history from your local `.claude` directory in a timeline format.
 
-## 기술 스택
+## Getting Started
 
-### 백엔드
-- **Fastify**: 빠른 웹 서버
-- **chokidar**: 파일 시스템 감시
-- **TypeScript**: 타입 안전성
-
-### 프론트엔드
-- **React + TypeScript**: UI 프레임워크
-- **Vite**: 빌드 도구
-- **TailwindCSS**: 스타일링
-- **TanStack Query**: 서버 상태 관리
-- **date-fns**: 날짜 처리
-
-## 시작하기
-
-### 설치
+### Installation
 
 ```bash
 npm install
 ```
 
-### npx로 실행
+### Run with npx
 
 ```bash
-npx . 
+npx .
 ```
 
-또는 패키지 이름으로 실행할 수 있습니다:
+Or run with the package name:
 
 ```bash
 npx claude-session-viewer
 ```
 
-### 개발 서버 실행
+### Run Development Server
 
 ```bash
 npm run dev
 ```
 
-이 명령어는 다음을 동시에 실행합니다:
-- 백엔드 서버 (http://localhost:3000)
-- 프론트엔드 개발 서버 (http://localhost:5173)
+This command runs both:
+- Backend server (http://localhost:3000)
+- Frontend development server (http://localhost:5173)
 
-브라우저에서 http://localhost:5173 을 열어주세요.
+Open http://localhost:5173 in your browser.
 
-### 빌드
+### Build
 
 ```bash
 npm run build
 ```
 
-## 기능
+## Features
 
-- ✅ `.claude` 디렉토리 자동 감지
-- ✅ 프로젝트별 세션 목록
-- ✅ 세션 상세 타임라인 뷰
-- ✅ 실시간 파일 변경 감지 (WebSocket)
-- 🚧 검색 및 필터링
-- 🚧 코드 하이라이팅
-- 🚧 마크다운 렌더링
+- ✅ Auto-detect `.claude` directory
+- ✅ Session list by project
+- ✅ Session detail timeline view
+- ✅ Real-time file change detection (WebSocket)
+- 🚧 Search and filtering
+- 🚧 Code highlighting
+- 🚧 Markdown rendering
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 .
 ├── src/
-│   ├── server/           # Fastify 백엔드
+│   ├── server/           # Fastify backend
 │   │   └── index.ts
-│   ├── components/       # React 컴포넌트
+│   ├── components/       # React components
 │   │   ├── SessionList.tsx
 │   │   └── SessionDetail.tsx
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── index.css
-├── vite.config.ts        # Vite 설정 (프록시 포함)
+├── vite.config.ts        # Vite config (includes proxy)
 └── package.json
 ```
 
 ## API
 
 ### GET /api/sessions
-모든 세션 목록을 반환합니다.
+Returns a list of all sessions.
 
 ### GET /api/sessions/:id
-특정 세션의 상세 정보를 반환합니다.
+Returns detailed information for a specific session.
 
 ### WebSocket /ws
-파일 변경 이벤트를 실시간으로 수신합니다.
+Receives real-time file change events.
