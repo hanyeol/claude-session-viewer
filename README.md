@@ -1,3 +1,9 @@
+<div align="center">
+
+![Screenshot](docs/images/screenshot.png)
+
+</div>
+
 # Claude Session Viewer
 
 A web-based tool to visualize Claude session history from your local `.claude` directory in a timeline format.
