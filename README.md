@@ -1,4 +1,4 @@
-# Claude Code Session Viewer
+# Claude Session Viewer
 
 A web-based tool to visualize Claude Code session history from your local `.claude` directory in a timeline format.
 
