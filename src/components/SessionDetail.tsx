@@ -1,0 +1,140 @@
+import { useQuery } from '@tanstack/react-query'
+import { format } from 'date-fns'
+
+interface SessionDetailProps {
+  sessionId: string
+}
+
+export default function SessionDetail({ sessionId }: SessionDetailProps) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/sessions/${sessionId}`)
+      if (!response.ok) throw new Error('Failed to fetch session')
+      return response.json()
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-400">Loading session...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-red-400">Error: {error.message}</div>
+      </div>
+    )
+  }
+
+  const session = data?.session
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="border-b border-gray-700 p-6 bg-gray-800">
+        <div className="flex items-center gap-2">
+          {session?.isAgent && (
+            <span className="px-2 py-1 text-xs bg-purple-900/50 text-purple-300 rounded font-semibold">
+              TASK
+            </span>
+          )}
+          <h2 className="text-2xl font-bold truncate flex-1">{session?.title || 'Untitled Session'}</h2>
+        </div>
+        <div className="text-xl text-gray-300">{session?.project}</div>
+        <div className="flex items-center gap-3 mt-4 text-sm text-gray-400">
+          <span>
+            {session?.timestamp && format(new Date(session.timestamp), 'PPpp')}
+          </span>
+          <span>•</span>
+          <span>
+            {session?.messageCount || 0} message{session?.messageCount !== 1 ? 's' : ''}
+          </span>
+          {session?.agentSessions && session.agentSessions.length > 0 && (
+            <>
+              <span>•</span>
+              <span>
+                {session.agentSessions.length} task{session.agentSessions.length !== 1 ? 's' : ''}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Messages Timeline */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {session?.messages.map((message: any, index: number) => (
+            <div key={index} className="border-l-2 border-gray-700 pl-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${
+                      message.type === 'user'
+                        ? 'bg-blue-900 text-blue-200'
+                        : message.type === 'assistant'
+                        ? 'bg-green-900 text-green-200'
+                        : 'bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {message.type || 'system'}
+                  </span>
+                  {message.timestamp && (
+                    <span className="text-xs text-gray-500">
+                      {format(new Date(message.timestamp), 'HH:mm:ss')}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Message Content */}
+              <div className="bg-gray-800 rounded-lg p-4 text-sm">
+                {message.message?.content && Array.isArray(message.message.content) ? (
+                  <div className="space-y-2">
+                    {message.message.content.map((content: any, idx: number) => (
+                      <div key={idx}>
+                        {content.type === 'text' && (
+                          <p className="whitespace-pre-wrap">{content.text}</p>
+                        )}
+                        {content.type === 'tool_use' && (
+                          <div className="bg-gray-900 p-3 rounded border border-gray-700">
+                            <div className="text-yellow-400 font-mono text-xs mb-2">
+                              🔧 {content.name}
+                            </div>
+                            <pre className="text-xs overflow-x-auto text-gray-400">
+                              {JSON.stringify(content.input, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {content.type === 'tool_result' && (
+                          <div className="bg-gray-900 p-3 rounded border border-gray-700">
+                            <div className="text-green-400 font-mono text-xs mb-2">
+                              ✓ Tool Result
+                            </div>
+                            <pre className="text-xs overflow-x-auto text-gray-400">
+                              {typeof content.content === 'string'
+                                ? content.content
+                                : JSON.stringify(content.content, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <pre className="text-xs overflow-x-auto text-gray-400">
+                    {JSON.stringify(message, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
