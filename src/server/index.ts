@@ -58,23 +58,35 @@ function cleanText(text: string): string {
     .trim()
 }
 
+function extractFirstText(content: any): string | null {
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (item.type === 'text' && item.text) {
+        const cleaned = cleanText(item.text)
+        if (cleaned) {
+          return cleaned
+        }
+      }
+    }
+    return null
+  }
+
+  if (typeof content === 'string') {
+    const cleaned = cleanText(content)
+    return cleaned || null
+  }
+
+  return null
+}
+
 // Helper: Extract title from session messages
 function extractSessionTitle(messages: any[]): string {
   // First, try to find queue-operation / enqueue message
   for (const msg of messages) {
     if (msg.type === 'queue-operation' && msg.operation === 'enqueue' && msg.content) {
-      const content = msg.content
-
-      // If content is array, find first non-empty text
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item.type === 'text' && item.text) {
-            const cleaned = cleanText(item.text)
-            if (cleaned) {
-              return cleaned.substring(0, 100).trim()
-            }
-          }
-        }
+      const firstText = extractFirstText(msg.content)
+      if (firstText) {
+        return firstText.substring(0, 100).trim()
       }
     }
   }
@@ -82,31 +94,114 @@ function extractSessionTitle(messages: any[]): string {
   // Fallback: Find first user message with actual text content
   for (const msg of messages) {
     if (msg.type === 'user' && msg.message?.content) {
-      const content = msg.message.content
-
-      // If content is array, find first non-empty text
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item.type === 'text' && item.text) {
-            const cleaned = cleanText(item.text)
-            if (cleaned) {
-              return cleaned.substring(0, 100).trim()
-            }
-          }
-        }
-      }
-
-      // If content is string
-      if (typeof content === 'string') {
-        const cleaned = cleanText(content)
-        if (cleaned) {
-          return cleaned.substring(0, 100).trim()
-        }
+      const firstText = extractFirstText(msg.message.content)
+      if (firstText) {
+        return firstText.substring(0, 100).trim()
       }
     }
   }
 
   return 'Untitled Session'
+}
+
+function getProjectNameFromPath(projectPath: string): string {
+  return projectPath.split('/').pop()?.replace(/-Users-hanyeol-Projects-/, '') || 'unknown'
+}
+
+function getProjectDisplayName(projectName: string): string {
+  return projectName.replace(/-Users-hanyeol-Projects-/, '')
+}
+
+function collectAgentDescriptions(messages: any[]): Map<string, string> {
+  const agentDescriptions = new Map<string, string>()
+  const toolUseDescriptions = new Map<string, string>()
+  const toolResultAgentIds = new Map<string, string>()
+
+  for (const msg of messages) {
+    if (msg.type === 'assistant' && msg.message?.content && Array.isArray(msg.message.content)) {
+      for (const item of msg.message.content) {
+        if (item.type === 'tool_use' && item.name === 'Task' && item.input?.description) {
+          toolUseDescriptions.set(item.id, item.input.description)
+        }
+      }
+    }
+
+    const agentId = msg.agentId || msg.toolUseResult?.agentId
+    if (agentId && msg.message?.content && Array.isArray(msg.message.content)) {
+      for (const item of msg.message.content) {
+        if (item.type === 'tool_result' && item.tool_use_id) {
+          toolResultAgentIds.set(item.tool_use_id, agentId)
+        }
+      }
+    }
+  }
+
+  for (const [toolUseId, description] of toolUseDescriptions.entries()) {
+    const agentId = toolResultAgentIds.get(toolUseId)
+    if (agentId) {
+      agentDescriptions.set(`agent-${agentId}`, description)
+    }
+  }
+
+  return agentDescriptions
+}
+
+function attachAgentSessionsFromMap(
+  session: Session,
+  agentDescriptions: Map<string, string>,
+  agentSessionsMap: Map<string, Session>
+): void {
+  if (agentDescriptions.size === 0) return
+
+  session.agentSessions = []
+  for (const [agentSessionId, description] of agentDescriptions) {
+    const agentSession = agentSessionsMap.get(agentSessionId)
+    if (agentSession) {
+      agentSession.title = description
+      session.agentSessions.push(agentSession)
+    }
+  }
+  session.agentSessions.sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+}
+
+async function loadAgentSessionsFromFiles(
+  projectPath: string,
+  projectName: string,
+  agentDescriptions: Map<string, string>
+): Promise<Session[]> {
+  const agentSessions: Session[] = []
+
+  for (const [agentSessionId, description] of agentDescriptions) {
+    const agentFile = join(projectPath, `${agentSessionId}.jsonl`)
+    try {
+      const agentMessages = await parseJsonl(agentFile)
+      const agentFileStat = await stat(agentFile)
+      agentSessions.push({
+        id: agentSessionId,
+        project: projectName,
+        timestamp: agentFileStat.mtime.toISOString(),
+        messages: agentMessages,
+        messageCount: agentMessages.length,
+        title: description,
+        isAgent: true
+      })
+    } catch {
+      // Skip if agent file not found
+    }
+  }
+
+  agentSessions.sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+  return agentSessions
+}
+
+function findAgentTitleFromParentMessages(messages: any[], agentId: string): string | null {
+  const agentDescriptions = collectAgentDescriptions(messages)
+  const description = agentDescriptions.get(`agent-${agentId}`)
+  return description || null
 }
 
 // Helper: Get all sessions from a project directory
@@ -133,7 +228,7 @@ async function getProjectSessions(projectPath: string): Promise<Session[]> {
         }
 
         // Extract project name from path
-        const projectName = projectPath.split('/').pop()?.replace(/-Users-hanyeol-Projects-/, '') || 'unknown'
+        const projectName = getProjectNameFromPath(projectPath)
 
         // Extract session title
         const title = extractSessionTitle(messages)
@@ -164,57 +259,8 @@ async function getProjectSessions(projectPath: string): Promise<Session[]> {
 
   // Second pass: attach agent sessions to their parent sessions
   for (const session of allSessions) {
-    const agentDescriptions = new Map<string, string>()
-
-    // Find all agentId references and their descriptions
-    for (const msg of session.messages) {
-      // Check if this is an assistant message with Task tool use
-      if (msg.type === 'assistant' && msg.message?.content) {
-        const content = msg.message.content
-        if (Array.isArray(content)) {
-          for (const item of content) {
-            if (item.type === 'tool_use' && item.name === 'Task' && item.input?.description) {
-              // Find the corresponding tool_result to get the agentId
-              const toolUseId = item.id
-
-              // Search for tool_result with matching tool_use_id
-              for (const resultMsg of session.messages) {
-                const agentId = resultMsg.agentId || resultMsg.toolUseResult?.agentId
-                if (agentId && resultMsg.message?.content) {
-                  const resultContent = resultMsg.message.content
-                  if (Array.isArray(resultContent)) {
-                    for (const resultItem of resultContent) {
-                      if (resultItem.type === 'tool_result' && resultItem.tool_use_id === toolUseId) {
-                        const agentSessionId = `agent-${agentId}`
-                        agentDescriptions.set(agentSessionId, item.input.description)
-                        break
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Attach referenced agent sessions
-    if (agentDescriptions.size > 0) {
-      session.agentSessions = []
-      for (const [agentSessionId, description] of agentDescriptions) {
-        const agentSession = agentSessionsMap.get(agentSessionId)
-        if (agentSession) {
-          // Override agent session title with the description from Task tool
-          agentSession.title = description
-          session.agentSessions.push(agentSession)
-        }
-      }
-      // Sort agent sessions by timestamp
-      session.agentSessions.sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      )
-    }
+    const agentDescriptions = collectAgentDescriptions(session.messages)
+    attachAgentSessionsFromMap(session, agentDescriptions, agentSessionsMap)
   }
 
   return allSessions
@@ -241,7 +287,7 @@ server.get('/api/sessions', async (request, reply) => {
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           )
 
-          const displayName = project.replace(/-Users-hanyeol-Projects-/, '')
+          const displayName = getProjectDisplayName(project)
 
           projectGroups.push({
             name: project,
@@ -282,57 +328,25 @@ server.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, repl
       try {
         const messages = await parseJsonl(sessionFile)
         const fileStat = await stat(sessionFile)
-        const projectName = project.replace(/-Users-hanyeol-Projects-/, '')
+        const projectName = getProjectDisplayName(project)
         let title = extractSessionTitle(messages)
 
         // For agent sessions, try to find the description from parent session
         if (isAgent) {
           const agentId = id.replace('agent-', '')
-
-          // Search all sessions in this project for the Task tool use
           const files = await readdir(projectPath)
           for (const file of files) {
             if (!file.startsWith('agent-') && file.endsWith('.jsonl')) {
               try {
                 const parentMessages = await parseJsonl(join(projectPath, file))
-
-                // Look for Task tool use with this agentId
-                for (const msg of parentMessages) {
-                  if (msg.type === 'assistant' && msg.message?.content) {
-                    const content = msg.message.content
-                    if (Array.isArray(content)) {
-                      for (const item of content) {
-                        if (item.type === 'tool_use' && item.name === 'Task' && item.input?.description) {
-                          const toolUseId = item.id
-
-                          // Find matching tool_result with this agentId
-                          for (const resultMsg of parentMessages) {
-                            const resultAgentId = resultMsg.agentId || resultMsg.toolUseResult?.agentId
-                            if (resultAgentId === agentId && resultMsg.message?.content) {
-                              const resultContent = resultMsg.message.content
-                              if (Array.isArray(resultContent)) {
-                                for (const resultItem of resultContent) {
-                                  if (resultItem.type === 'tool_result' && resultItem.tool_use_id === toolUseId) {
-                                    title = item.input.description
-                                    break
-                                  }
-                                }
-                              }
-                            }
-                            if (title !== extractSessionTitle(messages)) break
-                          }
-                        }
-                        if (title !== extractSessionTitle(messages)) break
-                      }
-                    }
-                    if (title !== extractSessionTitle(messages)) break
-                  }
-                  if (title !== extractSessionTitle(messages)) break
+                const description = findAgentTitleFromParentMessages(parentMessages, agentId)
+                if (description) {
+                  title = description
+                  break
                 }
               } catch {
                 continue
               }
-              if (title !== extractSessionTitle(messages)) break
             }
           }
         }
@@ -340,64 +354,9 @@ server.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, repl
         // If this is a main session (not agent), attach agent sessions
         let agentSessions: Session[] | undefined
         if (!isAgent) {
-          const agentDescriptions = new Map<string, string>()
-
-          // Find all agentId references and their descriptions
-          for (const msg of messages) {
-            if (msg.type === 'assistant' && msg.message?.content) {
-              const content = msg.message.content
-              if (Array.isArray(content)) {
-                for (const item of content) {
-                  if (item.type === 'tool_use' && item.name === 'Task' && item.input?.description) {
-                    const toolUseId = item.id
-
-                    // Search for tool_result with matching tool_use_id
-                    for (const resultMsg of messages) {
-                      const agentId = resultMsg.agentId || resultMsg.toolUseResult?.agentId
-                      if (agentId && resultMsg.message?.content) {
-                        const resultContent = resultMsg.message.content
-                        if (Array.isArray(resultContent)) {
-                          for (const resultItem of resultContent) {
-                            if (resultItem.type === 'tool_result' && resultItem.tool_use_id === toolUseId) {
-                              const agentSessionId = `agent-${agentId}`
-                              agentDescriptions.set(agentSessionId, item.input.description)
-                              break
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          // Load agent sessions
+          const agentDescriptions = collectAgentDescriptions(messages)
           if (agentDescriptions.size > 0) {
-            agentSessions = []
-            for (const [agentSessionId, description] of agentDescriptions) {
-              const agentFile = join(projectPath, `${agentSessionId}.jsonl`)
-              try {
-                const agentMessages = await parseJsonl(agentFile)
-                const agentFileStat = await stat(agentFile)
-                agentSessions.push({
-                  id: agentSessionId,
-                  project: projectName,
-                  timestamp: agentFileStat.mtime.toISOString(),
-                  messages: agentMessages,
-                  messageCount: agentMessages.length,
-                  title: description,
-                  isAgent: true
-                })
-              } catch {
-                // Skip if agent file not found
-              }
-            }
-            // Sort agent sessions by timestamp
-            agentSessions.sort((a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            )
+            agentSessions = await loadAgentSessionsFromFiles(projectPath, projectName, agentDescriptions)
           }
         }
 
