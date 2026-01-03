@@ -11,7 +11,7 @@ if (args.includes("--help") || args.includes("-h")) {
       "Claude Code Session Viewer",
       "",
       "Usage:",
-      "  npx claude-code-session-viewer",
+      "  npx claude-session-viewer",
       "",
       "Options:",
       "  -h, --help     Show this help message",

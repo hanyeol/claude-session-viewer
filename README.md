@@ -33,7 +33,7 @@ npx .
 또는 패키지 이름으로 실행할 수 있습니다:
 
 ```bash
-npx claude-code-session-viewer
+npx claude-session-viewer
 ```
 
 ### 개발 서버 실행
