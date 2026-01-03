@@ -5,9 +5,10 @@ import { homedir } from 'os'
 import { join } from 'path'
 import { readdir, readFile, stat } from 'fs/promises'
 import chokidar from 'chokidar'
+import getPort from 'get-port'
 
 const CLAUDE_DIR = join(homedir(), '.claude')
-const PORT = 3000
+const DEFAULT_PORT = 3000
 
 const server = Fastify({
   logger: true
@@ -411,8 +412,16 @@ server.register(async function (fastify) {
 // Start server
 const start = async () => {
   try {
-    await server.listen({ port: PORT })
-    console.log(`Server running on http://localhost:${PORT}`)
+    const envPort = process.env.PORT ? Number(process.env.PORT) : undefined
+    const port = Number.isFinite(envPort) ? envPort : await getPort({ port: DEFAULT_PORT })
+
+    await server.listen({ port })
+
+    if (port !== DEFAULT_PORT) {
+      console.log(`Port ${DEFAULT_PORT} is in use, using port ${port} instead`)
+    }
+
+    console.log(`Server running on http://localhost:${port}`)
     console.log(`Watching Claude directory: ${CLAUDE_DIR}`)
   } catch (err) {
     server.log.error(err)
