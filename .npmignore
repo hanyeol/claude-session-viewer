@@ -1,0 +1,26 @@
+# Source and configs
+src/
+*.ts
+*.tsx
+tsconfig*.json
+vite.config.ts
+postcss.config.js
+tailwind.config.js
+index.html
+
+# Dev artifacts
+node_modules/
+dist/**/*.map
+*.log
+.DS_Store
+
+# VCS and tooling
+.git/
+.github/
+.vscode/
+.idea/
+
+# Local/dev files
+.env*
+AGENTS.md
+CLAUDE.md

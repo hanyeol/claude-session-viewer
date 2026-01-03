@@ -1,15 +1,26 @@
 {
   "name": "claude-session-viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "claude-session-viewer": "./bin/cli.js"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "node bin/dev.js",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:client": "vite",
-    "build": "tsc && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:client": "vite build --outDir dist/client",
+    "build": "npm run build:server && npm run build:client",
+    "start": "node dist/server/index.js",
+    "prepack": "npm run build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
@@ -30,7 +41,7 @@
   "author": "Hanyeol Cho <hanyeol.cho@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@fastify/cors": "^9.0.1",
+    "@fastify/static": "^7.0.3",
     "@fastify/websocket": "^10.0.1",
     "@tanstack/react-query": "^5.17.19",
     "chokidar": "^3.5.3",

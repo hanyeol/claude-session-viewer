@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,9 +30,15 @@ if (args.includes("--version") || args.includes("-v")) {
 }
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+const serverEntry = resolve(rootDir, "dist/server/index.js");
 
-const child = spawn(npmCmd, ["run", "dev"], {
+if (!existsSync(serverEntry)) {
+  console.error("Build artifacts not found.");
+  console.error("Run `npm install` and `npm run build` in the repository first.");
+  process.exit(1);
+}
+
+const child = spawn(process.execPath, [serverEntry], {
   cwd: rootDir,
   stdio: "inherit",
 });

@@ -1,24 +1,40 @@
 import Fastify from 'fastify'
-import cors from '@fastify/cors'
+import fastifyStatic from '@fastify/static'
 import websocket from '@fastify/websocket'
-import { homedir } from 'os'
-import { join } from 'path'
+import { existsSync } from 'fs'
 import { readdir, readFile, stat } from 'fs/promises'
+import { homedir } from 'os'
+import { dirname, join, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import chokidar from 'chokidar'
 import getPort from 'get-port'
 
 const CLAUDE_DIR = join(homedir(), '.claude')
-const DEFAULT_PORT = 3000
+const SERVER_DIR = dirname(fileURLToPath(import.meta.url))
+const CLIENT_DIST_DIR = resolve(SERVER_DIR, '../client')
+const DEFAULT_PORT = 9090
 
 const server = Fastify({
   logger: true
 })
 
 // Plugins
-await server.register(cors, {
-  origin: 'http://localhost:5173'
-})
 await server.register(websocket)
+
+if (existsSync(CLIENT_DIST_DIR)) {
+  await server.register(fastifyStatic, {
+    root: CLIENT_DIST_DIR
+  })
+
+  server.setNotFoundHandler((request, reply) => {
+    const url = request.raw.url || ''
+    if (url.startsWith('/api') || url.startsWith('/ws')) {
+      reply.code(404).send({ error: 'Not found' })
+      return
+    }
+    reply.sendFile('index.html')
+  })
+}
 
 // Types
 interface Session {
@@ -429,8 +445,9 @@ const start = async () => {
       console.log(`Port ${DEFAULT_PORT} is in use, using port ${port} instead`)
     }
 
-    console.log(`Server running on http://localhost:${port}`)
-    console.log(`Watching Claude directory: ${CLAUDE_DIR}`)
+    const url = `http://localhost:${port}`
+    console.log(`Server running on \x1b[36m${url}\x1b[0m`)
+    console.log(`Watching Claude directory: \x1b[36m${CLAUDE_DIR}\x1b[0m`)
   } catch (err) {
     server.log.error(err)
     process.exit(1)

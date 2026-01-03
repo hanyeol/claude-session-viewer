@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-const serverPort = Number(process.env.VITE_API_PORT) || 3000
+const serverPort = Number(process.env.VITE_API_PORT) || 9090
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -28,5 +28,8 @@ export default defineConfig({
   },
   define: {
     'import.meta.env.VITE_API_PORT': JSON.stringify(serverPort.toString()),
+  },
+  build: {
+    outDir: 'dist/client',
   },
 })

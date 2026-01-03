@@ -7,7 +7,8 @@ import getPort from "get-port";
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 
-const port = await getPort({ port: 3000 });
+const DEFAULT_PORT = 9090;
+const port = await getPort({ port: DEFAULT_PORT });
 
 const children = new Set();
 
