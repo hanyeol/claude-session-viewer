@@ -4,25 +4,30 @@ A web-based tool to visualize Claude session history from your local `.claude` d
 
 ## Getting Started
 
-### Installation
-
-```bash
-npm install
-```
-
 ### Run with npx
-
-```bash
-npx .
-```
-
-Or run with the package name:
 
 ```bash
 npx claude-session-viewer
 ```
 
-### Run Development Server
+After running the command, look for the following logs to find the server URL:
+
+```
+Server running on http://localhost:9090
+Watching Claude directory: /Users/hanyeol/.claude
+```
+
+Open the URL shown in the logs (e.g., `http://localhost:9090`) in your web browser.
+
+### Development
+
+If you want to modify the source code or run in development mode, first install dependencies:
+
+```bash
+npm install
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
