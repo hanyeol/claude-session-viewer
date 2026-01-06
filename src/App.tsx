@@ -194,7 +194,7 @@ function AppContent() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto">
         {selectedSessionId ? (
           <SessionDetail sessionId={selectedSessionId} />
         ) : (

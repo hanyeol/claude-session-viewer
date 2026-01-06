@@ -10,7 +10,8 @@ interface SessionDetailProps {
 
 const TOC_WIDTH = 256 // 16rem / 64 * 4
 const MIN_CONTENT_WIDTH = 640 // Minimum width for readable content
-const MIN_TOTAL_WIDTH = MIN_CONTENT_WIDTH + TOC_WIDTH // Minimum width to show TOC
+const CONTENT_MAX_WIDTH = 896 // Tailwind max-w-4xl
+const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 
 export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
@@ -31,14 +32,20 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   useEffect(() => {
     if (!containerRef.current) return
 
+    const target = containerRef.current.parentElement ?? containerRef.current
+    const updateTocVisibility = (width: number) => {
+      setShowToc(width >= TOC_MIN_AVAILABLE_WIDTH)
+    }
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const width = entry.contentRect.width
-        setShowToc(width >= MIN_TOTAL_WIDTH)
+        updateTocVisibility(entry.contentRect.width)
       }
     })
 
-    resizeObserver.observe(containerRef.current)
+    const initialWidth = target.getBoundingClientRect().width
+    updateTocVisibility(initialWidth)
+    resizeObserver.observe(target)
 
     return () => {
       resizeObserver.disconnect()
@@ -116,9 +123,9 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const session = data?.session
 
   return (
-    <div ref={containerRef} className="h-full flex">
+    <div ref={containerRef} className="h-full flex min-w-0">
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
+      <div className="flex-1 flex flex-col min-w-0" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
       {/* Header */}
       <div className="border-b border-gray-700 p-6 bg-gray-800">
         <div className="flex items-center gap-2">
