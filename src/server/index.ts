@@ -121,12 +121,17 @@ function extractSessionTitle(messages: any[]): string {
   return 'Untitled Session'
 }
 
-function getProjectNameFromPath(projectPath: string): string {
-  return projectPath.split('/').pop()?.replace(/-Users-hanyeol-Projects-/, '') || 'unknown'
-}
+// Remove user's home directory prefix from project directory name
+// e.g., "-Users-hanyeol-Projects-hanyeol-claude-session-viewer" → "Projects-hanyeol-claude-session-viewer"
+function getProjectDisplayName(projectDirName: string): string {
+  const userHomePath = homedir().split('/').filter(Boolean).join('-')
+  const prefix = `-${userHomePath}-`
 
-function getProjectDisplayName(projectName: string): string {
-  return projectName.replace(/-Users-hanyeol-Projects-/, '')
+  if (projectDirName.startsWith(prefix)) {
+    return projectDirName.slice(prefix.length)
+  }
+
+  return projectDirName
 }
 
 function collectAgentDescriptions(messages: any[]): Map<string, string> {
@@ -245,7 +250,7 @@ async function getProjectSessions(projectPath: string): Promise<Session[]> {
         }
 
         // Extract project name from path
-        const projectName = getProjectNameFromPath(projectPath)
+        const projectName = getProjectDisplayName(projectPath.split('/').pop() || 'unknown')
 
         // Extract session title
         const title = extractSessionTitle(messages)
