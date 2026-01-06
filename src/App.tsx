@@ -40,7 +40,9 @@ function AppContent() {
     return stored ? parseInt(stored, 10) : DEFAULT_SIDEBAR_WIDTH
   })
   const [isResizing, setIsResizing] = useState(false)
+  const [scrollY, setScrollY] = useState(0)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['sessions'],
@@ -54,6 +56,19 @@ function AppContent() {
   const handleSelectSession = (id: string) => {
     navigate(`/sessions/${id}`)
   }
+
+  // Handle scroll for header shrinking
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current
+    if (!scrollContainer) return
+
+    const handleScroll = () => {
+      setScrollY(scrollContainer.scrollTop)
+    }
+
+    scrollContainer.addEventListener('scroll', handleScroll)
+    return () => scrollContainer.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Handle mouse move for resizing
   useEffect(() => {
@@ -148,34 +163,64 @@ function AppContent() {
     }
   }, [refetch, selectedSessionId])
 
+  // Calculate header size based on scroll (0 to 80px scroll range)
+  const headerScale = Math.max(0, 1 - scrollY / 80)
+  const headerPadding = 12 + headerScale * 12 // 12px to 24px
+  const titleSize = 1.125 + headerScale * 0.375 // 1.125rem (18px) to 1.5rem (24px)
+  const subtitleOpacity = headerScale
+
   return (
     <div className="flex h-screen bg-gray-900 text-white">
       {/* Sidebar */}
       <div
-        className="relative"
+        className="relative flex flex-col"
         style={{ width: `${sidebarWidth}px` }}
       >
         <div
           ref={sidebarRef}
-          className="border-r border-gray-700 overflow-y-auto h-full"
+          className="border-r border-gray-700 h-full flex flex-col"
         >
-          <div className="p-4 border-b border-gray-700">
-            <h1 className="text-xl font-bold">Claude Sessions</h1>
-            <p className="text-sm text-gray-400 mt-1">
+          {/* Fixed Header */}
+          <div
+            className="border-b border-gray-700 flex-shrink-0 transition-all duration-200"
+            style={{
+              padding: `${headerPadding}px`,
+            }}
+          >
+            <h1
+              className="font-bold transition-all duration-200"
+              style={{
+                fontSize: `${titleSize}rem`,
+              }}
+            >
+              Claude Sessions
+            </h1>
+            <p
+              className="text-sm text-gray-400 mt-1 transition-opacity duration-200"
+              style={{
+                opacity: subtitleOpacity,
+                height: subtitleOpacity > 0 ? 'auto' : 0,
+                overflow: 'hidden',
+              }}
+            >
               {isLoading ? 'Loading...' : `${data?.projects.length || 0} project${data?.projects.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          {error ? (
-            <div className="p-4 text-red-400 text-sm">
-              Error loading sessions: {error.message}
-            </div>
-          ) : (
-            <SessionList
-              projects={data?.projects || []}
-              selectedId={selectedSessionId}
-              onSelect={handleSelectSession}
-            />
-          )}
+
+          {/* Scrollable Content */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+            {error ? (
+              <div className="p-4 text-red-400 text-sm">
+                Error loading sessions: {error.message}
+              </div>
+            ) : (
+              <SessionList
+                projects={data?.projects || []}
+                selectedId={selectedSessionId}
+                onSelect={handleSelectSession}
+              />
+            )}
+          </div>
         </div>
 
         {/* Resize Handle */}
