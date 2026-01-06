@@ -17,10 +17,12 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
   const [scrollY, setScrollY] = useState(0)
+  const [isScrollingUp, setIsScrollingUp] = useState(false)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const lastScrollY = useRef(0)
   const { data, isLoading, error } = useQuery({
     queryKey: ['session', sessionId],
     queryFn: async () => {
@@ -33,19 +35,26 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   // Reset scroll position when session changes
   useEffect(() => {
     setScrollY(0)
+    lastScrollY.current = 0
+    setIsScrollingUp(false)
     const messagesContainer = messagesContainerRef.current
     if (messagesContainer) {
       messagesContainer.scrollTop = 0
     }
   }, [sessionId])
 
-  // Handle scroll for header shrinking
+  // Handle scroll for header shrinking with direction detection
   useEffect(() => {
     const messagesContainer = messagesContainerRef.current
     if (!messagesContainer) return
 
     const handleScroll = () => {
-      setScrollY(messagesContainer.scrollTop)
+      const currentScrollY = messagesContainer.scrollTop
+      const scrollingUp = currentScrollY < lastScrollY.current
+
+      setScrollY(currentScrollY)
+      setIsScrollingUp(scrollingUp)
+      lastScrollY.current = currentScrollY
     }
 
     messagesContainer.addEventListener('scroll', handleScroll)
@@ -147,12 +156,16 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const session = data?.session
 
   // Calculate header size and visibility based on scroll
-  // Stage 1 (0-60px): Metadata fades out
-  // Stage 2 (60-120px): Project name fades out, header padding reduces
-  const metadataOpacity = Math.max(0, 1 - scrollY / 60)
-  const projectOpacity = Math.max(0, 1 - Math.max(0, scrollY - 60) / 60)
-  const headerPaddingVertical = 14 + Math.max(0, 1 - scrollY / 120) * 8 // 14px to 22px
-  const titleSize = 1.25 + Math.max(0, 1 - scrollY / 120) * 0.25 // 1.25rem to 1.5rem (20px to 24px)
+  // When scrolling up, show full header; when scrolling down, use scroll position
+  const effectiveScroll = isScrollingUp ? 0 : scrollY
+
+  // Single stage (0-80px): Everything shrinks together
+  const shrinkScale = Math.max(0, 1 - effectiveScroll / 80)
+
+  const metadataOpacity = shrinkScale
+  const projectOpacity = shrinkScale
+  const headerPaddingVertical = 14 + shrinkScale * 8 // 14px to 22px
+  const titleSize = 1.25 + shrinkScale * 0.25 // 1.25rem to 1.5rem (20px to 24px)
 
   // Calculate metadata height for smooth collapse
   const metadataHeight = metadataOpacity > 0 ? 'auto' : 0

@@ -41,8 +41,10 @@ function AppContent() {
   })
   const [isResizing, setIsResizing] = useState(false)
   const [scrollY, setScrollY] = useState(0)
+  const [isScrollingUp, setIsScrollingUp] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const lastScrollY = useRef(0)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['sessions'],
@@ -57,13 +59,18 @@ function AppContent() {
     navigate(`/sessions/${id}`)
   }
 
-  // Handle scroll for header shrinking
+  // Handle scroll for header shrinking with direction detection
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current
     if (!scrollContainer) return
 
     const handleScroll = () => {
-      setScrollY(scrollContainer.scrollTop)
+      const currentScrollY = scrollContainer.scrollTop
+      const scrollingUp = currentScrollY < lastScrollY.current
+
+      setScrollY(currentScrollY)
+      setIsScrollingUp(scrollingUp)
+      lastScrollY.current = currentScrollY
     }
 
     scrollContainer.addEventListener('scroll', handleScroll)
@@ -163,8 +170,10 @@ function AppContent() {
     }
   }, [refetch, selectedSessionId])
 
-  // Calculate header size based on scroll (0 to 80px scroll range)
-  const headerScale = Math.max(0, 1 - scrollY / 80)
+  // Calculate header size based on scroll
+  // When scrolling up, show full header; when scrolling down, use scroll position
+  const effectiveScroll = isScrollingUp ? 0 : scrollY
+  const headerScale = Math.max(0, 1 - effectiveScroll / 80)
   const headerPadding = 12 + headerScale * 12 // 12px to 24px
   const titleSize = 1.125 + headerScale * 0.375 // 1.125rem (18px) to 1.5rem (24px)
   const subtitleOpacity = headerScale
