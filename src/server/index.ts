@@ -331,43 +331,37 @@ server.get('/api/sessions', async (request, reply) => {
 
 // Helper: Inject agentId into Task tool_use content
 function injectAgentIdsIntoMessages(messages: any[]): any[] {
-  // First pass: collect tool_use_id to agentId mapping
   const toolUseToAgentId = new Map<string, string>()
 
   for (const msg of messages) {
     const agentId = msg.agentId || msg.toolUseResult?.agentId
-    if (agentId && msg.message?.content && Array.isArray(msg.message.content)) {
-      for (const item of msg.message.content) {
-        if (item.type === 'tool_result' && item.tool_use_id) {
-          toolUseToAgentId.set(item.tool_use_id, agentId)
-        }
+    const content = msg.message?.content
+    if (!agentId || !Array.isArray(content)) continue
+
+    for (const item of content) {
+      if (item.type === 'tool_result' && item.tool_use_id) {
+        toolUseToAgentId.set(item.tool_use_id, agentId)
       }
     }
   }
 
-  // Second pass: inject agentId into Task tool_use content
   return messages.map((msg) => {
-    if (msg.message?.content && Array.isArray(msg.message.content)) {
-      const updatedContent = msg.message.content.map((item: any) => {
-        if (item.type === 'tool_use' && item.name === 'Task' && item.id) {
-          const agentId = toolUseToAgentId.get(item.id)
-          if (agentId) {
-            return { ...item, agentId }
-          }
-        }
-        return item
-      })
+    const content = msg.message?.content
+    if (!Array.isArray(content)) return msg
 
-      return {
-        ...msg,
-        message: {
-          ...msg.message,
-          content: updatedContent
-        }
+    const updatedContent = content.map((item: any) => {
+      if (item.type !== 'tool_use' || item.name !== 'Task' || !item.id) return item
+      const agentId = toolUseToAgentId.get(item.id)
+      return agentId ? { ...item, agentId } : item
+    })
+
+    return {
+      ...msg,
+      message: {
+        ...msg.message,
+        content: updatedContent
       }
     }
-
-    return msg
   })
 }
 
