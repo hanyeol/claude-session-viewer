@@ -86,7 +86,7 @@ export default function SessionToc({ messages, activeId, onNavigate }: SessionTo
   }
 
   return (
-    <div ref={containerRef} className="w-64 border-l border-gray-700 bg-gray-800 overflow-y-auto h-full">
+    <div ref={containerRef} className="w-full border-l border-gray-700 bg-gray-800 overflow-y-auto h-full">
       <div className="p-4 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
         <h3 className="text-sm font-semibold text-gray-300">Table of Contents</h3>
         <p className="text-xs text-gray-500 mt-1">{tocItems.length} messages</p>

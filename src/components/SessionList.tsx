@@ -26,6 +26,17 @@ interface SessionListProps {
 }
 
 export default function SessionList({ projects, selectedId, onSelect }: SessionListProps) {
+  // Determine which project should be initially expanded based on selected session
+  const getInitialExpanded = (project: ProjectGroup) => {
+    if (!selectedId) return false
+
+    return project.sessions.some(
+      (session) =>
+        session.id === selectedId ||
+        session.agentSessions?.some((agent) => agent.id === selectedId)
+    )
+  }
+
   return (
     <div>
       {projects.map((project) => (
@@ -38,6 +49,7 @@ export default function SessionList({ projects, selectedId, onSelect }: SessionL
           sessions={project.sessions}
           selectedId={selectedId}
           onSelectSession={onSelect}
+          initialExpanded={getInitialExpanded(project)}
         />
       ))}
     </div>

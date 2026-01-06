@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom'
 import SessionList from './components/SessionList'
 import SessionDetail from './components/SessionDetail'
 
@@ -30,7 +31,10 @@ const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 600
 
 function AppContent() {
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const params = useParams()
+  const selectedSessionId = params.sessionId || null
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
     return stored ? parseInt(stored, 10) : DEFAULT_SIDEBAR_WIDTH
@@ -46,6 +50,10 @@ function AppContent() {
       return response.json() as Promise<{ projects: ProjectGroup[] }>
     },
   })
+
+  const handleSelectSession = (id: string) => {
+    navigate(`/sessions/${id}`)
+  }
 
   // Handle mouse move for resizing
   useEffect(() => {
@@ -176,7 +184,7 @@ function AppContent() {
           <SessionList
             projects={data?.projects || []}
             selectedId={selectedSessionId}
-            onSelect={setSelectedSessionId}
+            onSelect={handleSelectSession}
           />
         </div>
 
@@ -230,7 +238,12 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AppContent />} />
+          <Route path="/sessions/:sessionId" element={<AppContent />} />
+        </Routes>
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

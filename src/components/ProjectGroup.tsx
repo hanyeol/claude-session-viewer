@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 
 interface Session {
@@ -20,6 +20,7 @@ interface ProjectGroupProps {
   sessions: Session[]
   selectedId: string | null
   onSelectSession: (id: string) => void
+  initialExpanded?: boolean
 }
 
 export default function ProjectGroup({
@@ -29,8 +30,23 @@ export default function ProjectGroup({
   sessions,
   selectedId,
   onSelectSession,
+  initialExpanded = false,
 }: ProjectGroupProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(initialExpanded)
+
+  // Auto-expand when a session in this project is selected
+  useEffect(() => {
+    if (selectedId) {
+      const hasSelectedSession = sessions.some(
+        (session) =>
+          session.id === selectedId ||
+          session.agentSessions?.some((agent) => agent.id === selectedId)
+      )
+      if (hasSelectedSession) {
+        setIsExpanded(true)
+      }
+    }
+  }, [selectedId, sessions])
 
   return (
     <div className="border-b border-gray-700">

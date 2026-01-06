@@ -7,10 +7,16 @@ interface SessionDetailProps {
   sessionId: string
 }
 
+const TOC_WIDTH = 256 // 16rem / 64 * 4
+const MIN_CONTENT_WIDTH = 640 // Minimum width for readable content
+const MIN_TOTAL_WIDTH = MIN_CONTENT_WIDTH + TOC_WIDTH // Minimum width to show TOC
+
 export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
+  const [showToc, setShowToc] = useState(true)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ['session', sessionId],
     queryFn: async () => {
@@ -19,6 +25,24 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       return response.json()
     },
   })
+
+  // ResizeObserver to toggle TOC visibility based on available width
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width
+        setShowToc(width >= MIN_TOTAL_WIDTH)
+      }
+    })
+
+    resizeObserver.observe(containerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   // Intersection Observer to track active message
   useEffect(() => {
@@ -91,9 +115,9 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const session = data?.session
 
   return (
-    <div className="h-full flex">
+    <div ref={containerRef} className="h-full flex">
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
       {/* Header */}
       <div className="border-b border-gray-700 p-6 bg-gray-800">
         <div className="flex items-center gap-2">
@@ -212,12 +236,14 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       </div>
 
       {/* Table of Contents */}
-      {session?.messages && session.messages.length > 0 && (
-        <SessionToc
-          messages={session.messages}
-          activeId={activeMessageId}
-          onNavigate={handleNavigate}
-        />
+      {showToc && session?.messages && session.messages.length > 0 && (
+        <div style={{ width: `${TOC_WIDTH}px`, flexShrink: 0 }}>
+          <SessionToc
+            messages={session.messages}
+            activeId={activeMessageId}
+            onNavigate={handleNavigate}
+          />
+        </div>
       )}
     </div>
   )
