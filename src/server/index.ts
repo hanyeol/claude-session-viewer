@@ -329,6 +329,48 @@ server.get('/api/sessions', async (request, reply) => {
   }
 })
 
+// Helper: Inject agentId into Task tool_use content
+function injectAgentIdsIntoMessages(messages: any[]): any[] {
+  // First pass: collect tool_use_id to agentId mapping
+  const toolUseToAgentId = new Map<string, string>()
+
+  for (const msg of messages) {
+    const agentId = msg.agentId || msg.toolUseResult?.agentId
+    if (agentId && msg.message?.content && Array.isArray(msg.message.content)) {
+      for (const item of msg.message.content) {
+        if (item.type === 'tool_result' && item.tool_use_id) {
+          toolUseToAgentId.set(item.tool_use_id, agentId)
+        }
+      }
+    }
+  }
+
+  // Second pass: inject agentId into Task tool_use content
+  return messages.map((msg) => {
+    if (msg.message?.content && Array.isArray(msg.message.content)) {
+      const updatedContent = msg.message.content.map((item: any) => {
+        if (item.type === 'tool_use' && item.name === 'Task' && item.id) {
+          const agentId = toolUseToAgentId.get(item.id)
+          if (agentId) {
+            return { ...item, agentId }
+          }
+        }
+        return item
+      })
+
+      return {
+        ...msg,
+        message: {
+          ...msg.message,
+          content: updatedContent
+        }
+      }
+    }
+
+    return msg
+  })
+}
+
 // API: Get session by ID
 server.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, reply) => {
   try {
@@ -377,12 +419,15 @@ server.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, repl
           }
         }
 
+        // Inject agentId into tool_result content
+        const messagesWithAgentIds = injectAgentIdsIntoMessages(messages)
+
         return {
           session: {
             id,
             project: projectName,
             timestamp: fileStat.mtime.toISOString(),
-            messages,
+            messages: messagesWithAgentIds,
             messageCount: messages.length,
             title,
             isAgent,

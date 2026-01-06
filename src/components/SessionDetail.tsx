@@ -200,8 +200,18 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
                         )}
                         {content.type === 'tool_use' && (
                           <div className="bg-gray-900 p-3 rounded border border-gray-700">
-                            <div className="text-yellow-400 font-mono text-xs mb-2">
-                              🔧 {content.name}
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-yellow-400 font-mono text-xs">
+                                🔧 {content.name}
+                              </div>
+                              {content.name === 'Task' && content.agentId && (
+                                <a
+                                  href={`/sessions/agent-${content.agentId}`}
+                                  className="px-2 py-1 text-xs bg-purple-700 hover:bg-purple-600 text-purple-100 rounded transition-colors"
+                                >
+                                  View Task →
+                                </a>
+                              )}
                             </div>
                             <pre className="text-xs overflow-x-auto text-gray-400">
                               {JSON.stringify(content.input, null, 2)}
