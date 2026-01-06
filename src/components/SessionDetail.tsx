@@ -16,9 +16,11 @@ const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
+  const [scrollY, setScrollY] = useState(0)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ['session', sessionId],
     queryFn: async () => {
@@ -27,6 +29,28 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       return response.json()
     },
   })
+
+  // Reset scroll position when session changes
+  useEffect(() => {
+    setScrollY(0)
+    const messagesContainer = messagesContainerRef.current
+    if (messagesContainer) {
+      messagesContainer.scrollTop = 0
+    }
+  }, [sessionId])
+
+  // Handle scroll for header shrinking
+  useEffect(() => {
+    const messagesContainer = messagesContainerRef.current
+    if (!messagesContainer) return
+
+    const handleScroll = () => {
+      setScrollY(messagesContainer.scrollTop)
+    }
+
+    messagesContainer.addEventListener('scroll', handleScroll)
+    return () => messagesContainer.removeEventListener('scroll', handleScroll)
+  }, [sessionId, data])
 
   // ResizeObserver to toggle TOC visibility based on available width
   useEffect(() => {
@@ -122,22 +146,76 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
 
   const session = data?.session
 
+  // Calculate header size and visibility based on scroll
+  // Stage 1 (0-60px): Metadata fades out
+  // Stage 2 (60-120px): Project name fades out, header padding reduces
+  const metadataOpacity = Math.max(0, 1 - scrollY / 60)
+  const projectOpacity = Math.max(0, 1 - Math.max(0, scrollY - 60) / 60)
+  const headerPaddingVertical = 14 + Math.max(0, 1 - scrollY / 120) * 8 // 14px to 22px
+  const titleSize = 1.25 + Math.max(0, 1 - scrollY / 120) * 0.25 // 1.25rem to 1.5rem (20px to 24px)
+
+  // Calculate metadata height for smooth collapse
+  const metadataHeight = metadataOpacity > 0 ? 'auto' : 0
+  // Show project badge when project name is hidden
+  const projectBadgeOpacity = Math.max(0, 1 - projectOpacity)
+
   return (
     <div ref={containerRef} className="h-full flex min-w-0">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
       {/* Header */}
-      <div className="border-b border-gray-700 p-6 bg-gray-800">
+      <div
+        className="border-b border-gray-700 bg-gray-800 flex-shrink-0 transition-all duration-200"
+        style={{
+          padding: `${headerPaddingVertical}px 24px`,
+        }}
+      >
         <div className="flex items-center gap-2">
           {session?.isAgent && (
             <span className="px-2 py-1 text-xs bg-purple-900/50 text-purple-300 rounded font-semibold">
               TASK
             </span>
           )}
-          <h2 className="text-2xl font-bold truncate flex-1">{session?.title || 'Untitled Session'}</h2>
+          <h2
+            className="font-bold truncate flex-1 transition-all duration-200"
+            style={{
+              fontSize: `${titleSize}rem`,
+            }}
+          >
+            {session?.title || 'Untitled Session'}
+          </h2>
+          {/* Project badge - shown when scrolled */}
+          {projectBadgeOpacity > 0 && (
+            <span
+              className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded transition-opacity duration-200"
+              style={{
+                opacity: projectBadgeOpacity,
+              }}
+            >
+              {session?.project}
+            </span>
+          )}
         </div>
-        <div className="text-xl text-gray-300">{session?.project}</div>
-        <div className="flex items-center gap-3 mt-4 text-sm text-gray-400">
+        <div
+          className="text-xl text-gray-300 transition-all duration-200"
+          style={{
+            opacity: projectOpacity,
+            height: projectOpacity > 0 ? 'auto' : 0,
+            overflow: 'hidden',
+            marginTop: '-2px',
+          }}
+        >
+          {session?.project}
+        </div>
+        <div
+          className="flex items-center gap-3 text-sm text-gray-400 transition-all duration-200"
+          style={{
+            opacity: metadataOpacity,
+            height: metadataHeight,
+            overflow: 'hidden',
+            marginTop: metadataOpacity > 0 ? '1rem' : 0,
+          }}
+        >
           <span>
             {session?.timestamp && format(new Date(session.timestamp), 'PPpp')}
           </span>
@@ -157,7 +235,7 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       </div>
 
       {/* Messages Timeline */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {session?.messages.map((message: any, index: number) => {
             const messageId = `message-${index}`
