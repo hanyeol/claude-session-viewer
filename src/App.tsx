@@ -148,22 +148,6 @@ function AppContent() {
     }
   }, [refetch, selectedSessionId])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-white text-xl">Loading sessions...</div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-red-400 text-xl">Error: {error.message}</div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-screen bg-gray-900 text-white">
       {/* Sidebar */}
@@ -178,14 +162,20 @@ function AppContent() {
           <div className="p-4 border-b border-gray-700">
             <h1 className="text-xl font-bold">Claude Sessions</h1>
             <p className="text-sm text-gray-400 mt-1">
-              {data?.projects.length || 0} project{data?.projects.length !== 1 ? 's' : ''}
+              {isLoading ? 'Loading...' : `${data?.projects.length || 0} project${data?.projects.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <SessionList
-            projects={data?.projects || []}
-            selectedId={selectedSessionId}
-            onSelect={handleSelectSession}
-          />
+          {error ? (
+            <div className="p-4 text-red-400 text-sm">
+              Error loading sessions: {error.message}
+            </div>
+          ) : (
+            <SessionList
+              projects={data?.projects || []}
+              selectedId={selectedSessionId}
+              onSelect={handleSelectSession}
+            />
+          )}
         </div>
 
         {/* Resize Handle */}

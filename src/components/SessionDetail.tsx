@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import SessionToc from './SessionToc'
 
 interface SessionDetailProps {
@@ -205,12 +206,12 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
                                 🔧 {content.name}
                               </div>
                               {content.name === 'Task' && content.agentId && (
-                                <a
-                                  href={`/sessions/agent-${content.agentId}`}
+                                <Link
+                                  to={`/sessions/agent-${content.agentId}`}
                                   className="px-2 py-1 text-xs bg-purple-700 hover:bg-purple-600 text-purple-100 rounded transition-colors"
                                 >
                                   View Task →
-                                </a>
+                                </Link>
                               )}
                             </div>
                             <pre className="text-xs overflow-x-auto text-gray-400">
