@@ -16,14 +16,26 @@ A web-based tool to visualize Claude session history from your local `.claude` d
 npx claude-session-viewer
 ```
 
-After running the command, look for the following logs to find the server URL:
+The server will start and automatically open in your default web browser. By default, it uses port 9090, but if that port is unavailable, it will automatically find an available port.
+
+You'll see output like this in your terminal:
 
 ```
 Server running on http://localhost:9090
-Watching Claude directory: /Users/hanyeol/.claude
+Watching Claude directory: /Users/username/.claude
+
+Opening browser at http://localhost:9090...
 ```
 
-Open the URL shown in the logs (e.g., `http://localhost:9090`) in your web browser.
+#### Options
+
+You can specify a custom port using the `--port` or `-p` option:
+
+```bash
+npx claude-session-viewer --port 3000
+```
+
+When you specify a port, the server will fail if that port is already in use. If you don't specify a port and the default (9090) is unavailable, it will automatically find an available port.
 
 ### Development
 
@@ -40,10 +52,22 @@ npm run dev
 ```
 
 This command runs both:
-- Backend server (http://localhost:3000)
-- Frontend development server (http://localhost:5173)
+- Backend server (default: http://localhost:9090)
+- Frontend development server (default: http://localhost:5173)
 
-Open http://localhost:5173 in your browser.
+The application will automatically open in your default web browser. By default, it uses ports 9090 (backend) and 5173 (frontend), but if those ports are unavailable, it will automatically find available ports.
+
+You'll see output like this in your terminal:
+
+```
+VITE v5.4.21  ready in 149 ms
+  ➜  Local:   http://localhost:5173/
+
+Server running on http://localhost:9090
+Watching Claude directory: /Users/username/.claude
+
+Opening browser at http://localhost:5173...
+```
 
 ### Build
 
