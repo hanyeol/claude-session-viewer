@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-const serverPort = Number(process.env.VITE_API_PORT) || 9090
+const serverPort = Number(process.env.VITE_SERVER_PORT) || 9090
+const clientPort = Number(process.env.VITE_CLIENT_PORT) || 5173
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,7 +14,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: clientPort,
+    strictPort: false,
     proxy: {
       '/api': {
         target: `http://localhost:${serverPort}`,
@@ -27,7 +29,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_API_PORT': JSON.stringify(serverPort.toString()),
+    'import.meta.env.VITE_SERVER_PORT': JSON.stringify(serverPort.toString()),
   },
   build: {
     outDir: 'dist/client',

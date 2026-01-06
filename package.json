@@ -25,17 +25,17 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "repository": {
-      "type": "git",
-      "url": "git+https://github.com/hanyeol/claude-session-viewer.git"
+    "type": "git",
+    "url": "git+https://github.com/hanyeol/claude-session-viewer.git"
   },
   "bugs": {
-      "url": "https://github.com/hanyeol/claude-session-viewer/issues"
+    "url": "https://github.com/hanyeol/claude-session-viewer/issues"
   },
   "keywords": [
-      "claude",
-      "claude-code",
-      "session-viewer",
-      "cli"
+    "claude",
+    "claude-code",
+    "session-viewer",
+    "cli"
   ],
   "homepage": "https://github.com/hanyeol/claude-session-viewer",
   "author": "Hanyeol Cho <hanyeol.cho@gmail.com>",
@@ -51,6 +51,7 @@
     "get-port": "^7.1.0",
     "highlight.js": "^11.9.0",
     "marked": "^11.1.1",
+    "open": "^11.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-window": "^1.8.10",

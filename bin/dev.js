@@ -3,12 +3,15 @@ import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import getPort from "get-port";
+import open from "open";
+
+const DEFAULT_SERVER_PORT = 9090;
+const DEFAULT_CLIENT_PORT = 5173;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-
-const DEFAULT_PORT = 9090;
-const port = await getPort({ port: DEFAULT_PORT });
+const serverPort = await getPort({ port: DEFAULT_SERVER_PORT });
+const clientPort = await getPort({ port: DEFAULT_CLIENT_PORT });
 
 const children = new Set();
 
@@ -25,8 +28,18 @@ function spawnProcess(args, envOverrides) {
   return child;
 }
 
-spawnProcess(["run", "dev:server"], { PORT: String(port) });
-spawnProcess(["run", "dev:client"], { VITE_API_PORT: String(port) });
+spawnProcess(["run", "dev:server"], { PORT: String(serverPort) });
+spawnProcess(["run", "dev:client"], {
+  VITE_SERVER_PORT: String(serverPort),
+  VITE_CLIENT_PORT: String(clientPort),
+});
+
+// Wait for Vite to start, then open browser
+setTimeout(async () => {
+  const url = `http://localhost:${clientPort}`;
+  console.log(`\nOpening browser at ${url}...`);
+  await open(url);
+}, 1000);
 
 function shutdown(signal) {
   for (const child of children) {
