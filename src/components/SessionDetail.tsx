@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
+import { useEffect, useRef, useState } from 'react'
+import SessionToc from './SessionToc'
 
 interface SessionDetailProps {
   sessionId: string
 }
 
 export default function SessionDetail({ sessionId }: SessionDetailProps) {
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const isManualNavigatingRef = useRef(false)
   const { data, isLoading, error } = useQuery({
     queryKey: ['session', sessionId],
     queryFn: async () => {
@@ -14,6 +19,58 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       return response.json()
     },
   })
+
+  // Intersection Observer to track active message
+  useEffect(() => {
+    if (!data?.session?.messages) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Don't update active message if user is manually navigating
+        if (isManualNavigatingRef.current) return
+
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute('data-message-id')
+            if (id) {
+              setActiveMessageId(id)
+            }
+          }
+        })
+      },
+      {
+        rootMargin: '-50% 0px -50% 0px',
+        threshold: 0
+      }
+    )
+
+    messageRefs.current.forEach((element) => {
+      observer.observe(element)
+    })
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [data?.session?.messages])
+
+  // Handle navigation from TOC
+  const handleNavigate = (id: string) => {
+    // Immediately update active message
+    setActiveMessageId(id)
+
+    // Set manual navigation flag
+    isManualNavigatingRef.current = true
+
+    const element = messageRefs.current.get(id)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    // Reset flag after scrolling completes
+    setTimeout(() => {
+      isManualNavigatingRef.current = false
+    }, 1500)
+  }
 
   if (isLoading) {
     return (
@@ -34,7 +91,9 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const session = data?.session
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-700 p-6 bg-gray-800">
         <div className="flex items-center gap-2">
@@ -68,8 +127,20 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       {/* Messages Timeline */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          {session?.messages.map((message: any, index: number) => (
-            <div key={index} className="border-l-2 border-gray-700 pl-4">
+          {session?.messages.map((message: any, index: number) => {
+            const messageId = `message-${index}`
+            return (
+            <div
+              key={index}
+              ref={(el) => {
+                if (el) {
+                  messageRefs.current.set(messageId, el)
+                } else {
+                  messageRefs.current.delete(messageId)
+                }
+              }}
+              data-message-id={messageId}
+              className="border-l-2 border-gray-700 pl-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span
@@ -82,6 +153,9 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
                     }`}
                   >
                     {message.type || 'system'}
+                  </span>
+                  <span className="text-xs text-gray-500 font-mono">
+                    #{index + 1}
                   </span>
                   {message.timestamp && (
                     <span className="text-xs text-gray-500">
@@ -132,9 +206,19 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
                 )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </div>
+      </div>
+
+      {/* Table of Contents */}
+      {session?.messages && session.messages.length > 0 && (
+        <SessionToc
+          messages={session.messages}
+          activeId={activeMessageId}
+          onNavigate={handleNavigate}
+        />
+      )}
     </div>
   )
 }
