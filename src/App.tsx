@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import SessionList from './components/SessionList'
 import SessionDetail from './components/SessionDetail'
 
@@ -24,8 +24,19 @@ interface ProjectGroup {
   sessions: Session[]
 }
 
+const SIDEBAR_WIDTH_STORAGE_KEY = 'claude-session-viewer-sidebar-width'
+const DEFAULT_SIDEBAR_WIDTH = 320
+const MIN_SIDEBAR_WIDTH = 200
+const MAX_SIDEBAR_WIDTH = 600
+
 function AppContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+    return stored ? parseInt(stored, 10) : DEFAULT_SIDEBAR_WIDTH
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['sessions'],
@@ -35,6 +46,37 @@ function AppContent() {
       return response.json() as Promise<{ projects: ProjectGroup[] }>
     },
   })
+
+  // Handle mouse move for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+
+      const newWidth = e.clientX
+      if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
+        setSidebarWidth(newWidth)
+        localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, newWidth.toString())
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    if (isResizing) {
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -117,18 +159,40 @@ function AppContent() {
   return (
     <div className="flex h-screen bg-gray-900 text-white">
       {/* Sidebar */}
-      <div className="w-80 border-r border-gray-700 overflow-y-auto">
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">Claude Sessions</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            {data?.projects.length || 0} project{data?.projects.length !== 1 ? 's' : ''}
-          </p>
+      <div
+        className="relative"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <div
+          ref={sidebarRef}
+          className="border-r border-gray-700 overflow-y-auto h-full"
+        >
+          <div className="p-4 border-b border-gray-700">
+            <h1 className="text-xl font-bold">Claude Sessions</h1>
+            <p className="text-sm text-gray-400 mt-1">
+              {data?.projects.length || 0} project{data?.projects.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <SessionList
+            projects={data?.projects || []}
+            selectedId={selectedSessionId}
+            onSelect={setSelectedSessionId}
+          />
         </div>
-        <SessionList
-          projects={data?.projects || []}
-          selectedId={selectedSessionId}
-          onSelect={setSelectedSessionId}
-        />
+
+        {/* Resize Handle */}
+        <div
+          className="absolute top-0 right-0 w-4 h-full cursor-col-resize group z-10"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            setIsResizing(true)
+          }}
+          style={{
+            touchAction: 'none',
+          }}
+        >
+          <div className={`w-1 h-full ml-auto transition-colors ${isResizing ? 'bg-blue-500' : 'bg-transparent group-hover:bg-blue-500'}`} />
+        </div>
       </div>
 
       {/* Main content */}
