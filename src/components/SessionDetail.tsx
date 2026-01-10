@@ -128,7 +128,7 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
 
     const element = messageRefs.current.get(id)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
     // Reset flag after scrolling completes
@@ -263,7 +263,8 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
                 }
               }}
               data-message-id={messageId}
-              className="border-l-2 border-gray-700 pl-4">
+              className="border-l-2 border-gray-700 pl-4"
+              style={{ scrollMarginTop: '24px' }}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span
