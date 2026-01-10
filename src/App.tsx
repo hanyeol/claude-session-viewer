@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import SessionList from './components/SessionList'
 import SessionDetail from './components/SessionDetail'
+import Dashboard from './components/Dashboard'
 
 const queryClient = new QueryClient()
 
@@ -32,8 +33,10 @@ const MAX_SIDEBAR_WIDTH = 600
 
 function AppContent() {
   const navigate = useNavigate()
+  const location = useLocation()
   const params = useParams()
   const selectedSessionId = params.sessionId || null
+  const isDashboard = location.pathname === '/dashboard'
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
@@ -248,8 +251,10 @@ function AppContent() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
-        {selectedSessionId ? (
+      <div className="flex-1 min-w-0">
+        {isDashboard ? (
+          <Dashboard />
+        ) : selectedSessionId ? (
           <SessionDetail sessionId={selectedSessionId} />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -284,7 +289,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<AppContent />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<AppContent />} />
           <Route path="/sessions/:sessionId" element={<AppContent />} />
         </Routes>
       </BrowserRouter>
