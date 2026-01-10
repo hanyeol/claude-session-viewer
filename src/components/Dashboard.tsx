@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { Bar } from 'react-chartjs-2'
 import {
@@ -21,6 +21,70 @@ ChartJS.register(
   Tooltip,
   Legend
 )
+
+// Utility function to measure text width
+function getTextWidth(text: string, font: string = '12px sans-serif'): number {
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) return 0
+  context.font = font
+  const metrics = context.measureText(text)
+  return metrics.width
+}
+
+// Bar section component with text width calculation
+interface BarSectionProps {
+  label: string
+  percentage: number
+  color: string
+  title: string
+  containerRef?: React.RefObject<HTMLDivElement>
+}
+
+function BarSection({ label, percentage, color, title }: BarSectionProps) {
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const [showLabel, setShowLabel] = useState(false)
+
+  useEffect(() => {
+    const updateLabelVisibility = () => {
+      if (sectionRef.current) {
+        const sectionWidth = sectionRef.current.offsetWidth
+        // Use font matching text-xs font-semibold (approximately 12px bold)
+        const textWidth = getTextWidth(label, 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
+        // Add some padding (8px total for both sides)
+        setShowLabel(sectionWidth >= textWidth + 8)
+      }
+    }
+
+    // Initial calculation
+    updateLabelVisibility()
+
+    // Update on window resize
+    window.addEventListener('resize', updateLabelVisibility)
+
+    // Use ResizeObserver for more accurate detection
+    const resizeObserver = new ResizeObserver(updateLabelVisibility)
+    if (sectionRef.current) {
+      resizeObserver.observe(sectionRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateLabelVisibility)
+      resizeObserver.disconnect()
+    }
+  }, [label, percentage])
+
+  return (
+    <div
+      ref={sectionRef}
+      className={`${color} flex items-center justify-center text-xs font-semibold transition-all`}
+      style={{ width: `${percentage}%`, minWidth: '2px' }}
+      title={title}
+    >
+      {showLabel && <span className="text-white">{label}</span>}
+    </div>
+  )
+}
 
 interface TokenUsage {
   inputTokens: number
@@ -281,48 +345,88 @@ function Dashboard() {
         {/* Token Breakdown */}
         <div className="bg-gray-800/50 rounded-lg p-6 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6">Token Breakdown</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-gray-300">Input & Output Tokens</h3>
-              <ProgressBar
-                label="Regular Input"
-                value={overview.total.inputTokens}
-                max={overview.total.totalTokens}
-                color="blue"
+
+          {/* Total Token Distribution */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Total Token Distribution</h3>
+              <span className="text-sm text-white font-semibold">{formatNumber(overview.total.totalTokens)} tokens</span>
+            </div>
+            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+              <BarSection
+                label="Input"
+                percentage={(overview.total.inputTokens / overview.total.totalTokens) * 100}
+                color="bg-blue-500"
+                title={`Input: ${formatNumber(overview.total.inputTokens)}`}
               />
-              <ProgressBar
-                label="Output Tokens"
-                value={overview.total.outputTokens}
-                max={overview.total.totalTokens}
-                color="green"
+              <BarSection
+                label="Output"
+                percentage={(overview.total.outputTokens / overview.total.totalTokens) * 100}
+                color="bg-green-500"
+                title={`Output: ${formatNumber(overview.total.outputTokens)}`}
+              />
+              <BarSection
+                label="Cache Create"
+                percentage={(overview.total.cacheCreationTokens / overview.total.totalTokens) * 100}
+                color="bg-purple-500"
+                title={`Cache Create: ${formatNumber(overview.total.cacheCreationTokens)}`}
+              />
+              <BarSection
+                label="Cache Read"
+                percentage={(overview.total.cacheReadTokens / overview.total.totalTokens) * 100}
+                color="bg-cyan-500"
+                title={`Cache Read: ${formatNumber(overview.total.cacheReadTokens)}`}
               />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-gray-300">Cache Details</h3>
-              <ProgressBar
-                label="Cache Creation"
-                value={overview.total.cacheCreationTokens}
-                max={overview.total.totalTokens}
-                color="purple"
+            <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded" />
+                <span>Input ({formatNumber(overview.total.inputTokens)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded" />
+                <span>Output ({formatNumber(overview.total.outputTokens)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-purple-500 rounded" />
+                <span>Cache Create ({formatNumber(overview.total.cacheCreationTokens)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-cyan-500 rounded" />
+                <span>Cache Read ({formatNumber(overview.total.cacheReadTokens)})</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cache Creation Breakdown */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Cache Creation Breakdown</h3>
+              <span className="text-sm text-white font-semibold">{formatNumber(cache.totalCacheCreation)} tokens</span>
+            </div>
+            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+              <BarSection
+                label="5-minute"
+                percentage={cache.totalCacheCreation > 0 ? (cache.ephemeral5mTokens / cache.totalCacheCreation) * 100 : 0}
+                color="bg-yellow-500"
+                title={`5-minute: ${formatNumber(cache.ephemeral5mTokens)}`}
               />
-              <ProgressBar
-                label="Cache Read"
-                value={overview.total.cacheReadTokens}
-                max={overview.total.totalTokens}
-                color="cyan"
+              <BarSection
+                label="1-hour"
+                percentage={cache.totalCacheCreation > 0 ? (cache.ephemeral1hTokens / cache.totalCacheCreation) * 100 : 0}
+                color="bg-orange-500"
+                title={`1-hour: ${formatNumber(cache.ephemeral1hTokens)}`}
               />
-              <ProgressBar
-                label="5-minute Cache"
-                value={cache.ephemeral5mTokens}
-                max={cache.totalCacheCreation}
-                color="yellow"
-              />
-              <ProgressBar
-                label="1-hour Cache"
-                value={cache.ephemeral1hTokens}
-                max={cache.totalCacheCreation}
-                color="orange"
-              />
+            </div>
+            <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded" />
+                <span>5-minute ({formatNumber(cache.ephemeral5mTokens)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-orange-500 rounded" />
+                <span>1-hour ({formatNumber(cache.ephemeral1hTokens)})</span>
+              </div>
             </div>
           </div>
         </div>
@@ -330,39 +434,68 @@ function Dashboard() {
         {/* Cost Breakdown */}
         <div className="bg-gray-800/50 rounded-lg p-6 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6">Cost Breakdown</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <ProgressBar
-                label="Input Cost"
-                value={cost.inputCost}
-                max={cost.totalCost}
-                color="blue"
+
+          {/* Total Cost Distribution */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Total Cost Distribution</h3>
+              <span className="text-sm text-white font-semibold">{formatCost(cost.totalCost)}</span>
+            </div>
+            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+              <BarSection
+                label="Input"
+                percentage={(cost.inputCost / cost.totalCost) * 100}
+                color="bg-blue-500"
+                title={`Input: ${formatCost(cost.inputCost)}`}
               />
-              <ProgressBar
-                label="Output Cost"
-                value={cost.outputCost}
-                max={cost.totalCost}
-                color="green"
+              <BarSection
+                label="Output"
+                percentage={(cost.outputCost / cost.totalCost) * 100}
+                color="bg-green-500"
+                title={`Output: ${formatCost(cost.outputCost)}`}
+              />
+              <BarSection
+                label="Cache Create"
+                percentage={(cost.cacheCreationCost / cost.totalCost) * 100}
+                color="bg-purple-500"
+                title={`Cache Create: ${formatCost(cost.cacheCreationCost)}`}
+              />
+              <BarSection
+                label="Cache Read"
+                percentage={(cost.cacheReadCost / cost.totalCost) * 100}
+                color="bg-cyan-500"
+                title={`Cache Read: ${formatCost(cost.cacheReadCost)}`}
               />
             </div>
-            <div>
-              <ProgressBar
-                label="Cache Creation Cost"
-                value={cost.cacheCreationCost}
-                max={cost.totalCost}
-                color="purple"
-              />
-              <ProgressBar
-                label="Cache Read Cost"
-                value={cost.cacheReadCost}
-                max={cost.totalCost}
-                color="cyan"
-              />
+            <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded" />
+                <span>Input ({formatCost(cost.inputCost)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded" />
+                <span>Output ({formatCost(cost.outputCost)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-purple-500 rounded" />
+                <span>Cache Create ({formatCost(cost.cacheCreationCost)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-cyan-500 rounded" />
+                <span>Cache Read ({formatCost(cost.cacheReadCost)})</span>
+              </div>
             </div>
           </div>
-          <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded">
-            <div className="text-sm text-gray-400">Estimated savings from cache</div>
-            <div className="text-2xl font-bold text-green-400">{formatCost(cache.estimatedSavings)}</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded">
+              <div className="text-sm text-gray-400">Estimated savings from cache</div>
+              <div className="text-2xl font-bold text-green-400">{formatCost(cache.estimatedSavings)}</div>
+            </div>
+            <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded">
+              <div className="text-sm text-gray-400">Cache Hit Rate</div>
+              <div className="text-2xl font-bold text-purple-400">{cache.cacheHitRate.toFixed(1)}%</div>
+            </div>
           </div>
         </div>
 
