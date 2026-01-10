@@ -44,6 +44,7 @@ interface BarSectionProps {
 function BarSection({ label, percentage, color, title }: BarSectionProps) {
   const sectionRef = useRef<HTMLDivElement>(null)
   const [showLabel, setShowLabel] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
 
   useEffect(() => {
     const updateLabelVisibility = () => {
@@ -75,14 +76,34 @@ function BarSection({ label, percentage, color, title }: BarSectionProps) {
   }, [label, percentage])
 
   return (
-    <div
-      ref={sectionRef}
-      className={`${color} flex items-center justify-center text-xs font-semibold transition-all`}
-      style={{ width: `${percentage}%`, minWidth: '2px' }}
-      title={title}
-    >
-      {showLabel && <span className="text-white">{label}</span>}
-    </div>
+    <>
+      <div
+        ref={sectionRef}
+        className={`${color} flex items-center justify-center text-xs font-semibold transition-all`}
+        style={{ width: `${percentage}%`, minWidth: '2px' }}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        {showLabel && <span className="text-white">{label}</span>}
+      </div>
+
+      {/* Custom Tooltip - positioned outside the bar */}
+      {showTooltip && sectionRef.current && (
+        <div
+          className="fixed px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg border border-gray-700 whitespace-nowrap z-50 pointer-events-none"
+          style={{
+            left: `${sectionRef.current.getBoundingClientRect().left + sectionRef.current.getBoundingClientRect().width / 2}px`,
+            top: `${sectionRef.current.getBoundingClientRect().top - 10}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          {title}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+            <div className="border-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -352,7 +373,8 @@ function Dashboard() {
               <h3 className="text-sm font-semibold text-gray-300">Total Token Distribution</h3>
               <span className="text-sm text-white font-semibold">{formatNumber(overview.total.totalTokens)} tokens</span>
             </div>
-            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+            <div className="relative">
+              <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
               <BarSection
                 label="Input"
                 percentage={(overview.total.inputTokens / overview.total.totalTokens) * 100}
@@ -377,6 +399,7 @@ function Dashboard() {
                 color="bg-cyan-500"
                 title={`Cache Read: ${formatNumber(overview.total.cacheReadTokens)}`}
               />
+              </div>
             </div>
             <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
               <div className="flex items-center gap-2">
@@ -404,7 +427,8 @@ function Dashboard() {
               <h3 className="text-sm font-semibold text-gray-300">Cache Creation Breakdown</h3>
               <span className="text-sm text-white font-semibold">{formatNumber(cache.totalCacheCreation)} tokens</span>
             </div>
-            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+            <div className="relative">
+              <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
               <BarSection
                 label="5-minute"
                 percentage={cache.totalCacheCreation > 0 ? (cache.ephemeral5mTokens / cache.totalCacheCreation) * 100 : 0}
@@ -417,6 +441,7 @@ function Dashboard() {
                 color="bg-orange-500"
                 title={`1-hour: ${formatNumber(cache.ephemeral1hTokens)}`}
               />
+              </div>
             </div>
             <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
               <div className="flex items-center gap-2">
@@ -441,7 +466,8 @@ function Dashboard() {
               <h3 className="text-sm font-semibold text-gray-300">Total Cost Distribution</h3>
               <span className="text-sm text-white font-semibold">{formatCost(cost.totalCost)}</span>
             </div>
-            <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
+            <div className="relative">
+              <div className="h-8 w-full bg-gray-700 overflow-hidden flex">
               <BarSection
                 label="Input"
                 percentage={(cost.inputCost / cost.totalCost) * 100}
@@ -466,6 +492,7 @@ function Dashboard() {
                 color="bg-cyan-500"
                 title={`Cache Read: ${formatCost(cost.cacheReadCost)}`}
               />
+              </div>
             </div>
             <div className="flex gap-4 mt-3 text-xs justify-center flex-wrap">
               <div className="flex items-center gap-2">
