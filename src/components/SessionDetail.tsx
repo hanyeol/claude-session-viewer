@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SessionToc from './SessionToc'
 
@@ -16,11 +16,23 @@ const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 export default function SessionDetail({ sessionId }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
-  const [scrollY, setScrollY] = useState(0)
-  const [isScrollingUp, setIsScrollingUp] = useState(false)
+  const [messagesContainerEl, setMessagesContainerEl] = useState<HTMLDivElement | null>(null)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
+  const activeMessageIdRef = useRef<string | null>(null)
+  const manualNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const updateActiveMessageRef = useRef<(() => void) | null>(null)
+  const manualTargetIdRef = useRef<string | null>(null)
+  const bottomLockRef = useRef(false)
+  const pendingScrollYRef = useRef(0)
+  const animatedScrollYRef = useRef(0)
+  const scrollRafRef = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const projectRef = useRef<HTMLDivElement>(null)
+  const metadataRef = useRef<HTMLDivElement>(null)
+  const projectBadgeRef = useRef<HTMLSpanElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const { data, isLoading, error } = useQuery({
@@ -34,32 +46,108 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
 
   // Reset scroll position when session changes
   useEffect(() => {
-    setScrollY(0)
+    pendingScrollYRef.current = 0
+    animatedScrollYRef.current = 0
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current)
+      scrollRafRef.current = null
+    }
     lastScrollY.current = 0
-    setIsScrollingUp(false)
+    setActiveMessageId(null)
+    activeMessageIdRef.current = null
+    bottomLockRef.current = false
     const messagesContainer = messagesContainerRef.current
     if (messagesContainer) {
       messagesContainer.scrollTop = 0
     }
   }, [sessionId])
 
+  const updateHeaderStyles = (scale: number) => {
+    const header = headerRef.current
+    if (!header) return
+
+    const headerPaddingVertical = 14 + scale * 8
+    const titleSize = 1.25 + scale * 0.25
+    const projectOpacity = scale
+    const metadataOpacity = scale
+    const projectBadgeOpacity = Math.max(0, 1 - projectOpacity)
+
+    header.style.padding = `${headerPaddingVertical}px 24px`
+    if (titleRef.current) {
+      titleRef.current.style.fontSize = `${titleSize}rem`
+    }
+    if (projectRef.current) {
+      projectRef.current.style.opacity = `${projectOpacity}`
+      projectRef.current.style.height = projectOpacity > 0 ? 'auto' : '0'
+    }
+    if (metadataRef.current) {
+      metadataRef.current.style.opacity = `${metadataOpacity}`
+      metadataRef.current.style.height = metadataOpacity > 0 ? 'auto' : '0'
+      metadataRef.current.style.marginTop = metadataOpacity > 0 ? '1rem' : '0'
+    }
+    if (projectBadgeRef.current) {
+      projectBadgeRef.current.style.opacity = `${projectBadgeOpacity}`
+    }
+  }
+
   // Handle scroll for header shrinking with direction detection
   useEffect(() => {
-    const messagesContainer = messagesContainerRef.current
+    const messagesContainer = messagesContainerEl
     if (!messagesContainer) return
 
-    const handleScroll = () => {
-      const currentScrollY = messagesContainer.scrollTop
-      const scrollingUp = currentScrollY < lastScrollY.current
+    const tick = () => {
+      const targetScrollY = pendingScrollYRef.current
+      const currentScrollY = animatedScrollYRef.current
+      const easedScrollY = currentScrollY + (targetScrollY - currentScrollY) * 0.2
+      const distanceFromBottom =
+        messagesContainer.scrollHeight - (easedScrollY + messagesContainer.clientHeight)
+      const shouldLock = distanceFromBottom <= 5
+      const scrollingUp = easedScrollY < lastScrollY.current
 
-      setScrollY(currentScrollY)
-      setIsScrollingUp(scrollingUp)
-      lastScrollY.current = currentScrollY
+      let nextBottomLocked = bottomLockRef.current
+      if (nextBottomLocked) {
+        if (distanceFromBottom > 40) {
+          nextBottomLocked = false
+        }
+      } else if (shouldLock) {
+        nextBottomLocked = true
+      }
+      bottomLockRef.current = nextBottomLocked
+
+      const effectiveScroll = scrollingUp ? 0 : nextBottomLocked ? 80 : easedScrollY
+      const shrinkScale = Math.max(0, 1 - effectiveScroll / 80)
+      updateHeaderStyles(shrinkScale)
+
+      animatedScrollYRef.current = easedScrollY
+      lastScrollY.current = easedScrollY
+
+      if (Math.abs(targetScrollY - easedScrollY) > 0.5) {
+        scrollRafRef.current = requestAnimationFrame(tick)
+      } else {
+        animatedScrollYRef.current = targetScrollY
+        lastScrollY.current = targetScrollY
+        scrollRafRef.current = null
+        if (nextBottomLocked) {
+          updateActiveMessageRef.current?.()
+        }
+      }
+    }
+
+    const handleScroll = () => {
+      pendingScrollYRef.current = messagesContainer.scrollTop
+      if (scrollRafRef.current !== null) return
+      scrollRafRef.current = requestAnimationFrame(tick)
     }
 
     messagesContainer.addEventListener('scroll', handleScroll)
-    return () => messagesContainer.removeEventListener('scroll', handleScroll)
-  }, [sessionId, data])
+    return () => {
+      messagesContainer.removeEventListener('scroll', handleScroll)
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = null
+      }
+    }
+  }, [sessionId, messagesContainerEl])
 
   // ResizeObserver to toggle TOC visibility based on available width
   useEffect(() => {
@@ -85,57 +173,211 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
     }
   }, [])
 
-  // Intersection Observer to track active message
+  // Track active message based on visibility
   useEffect(() => {
     if (!data?.session?.messages) return
 
+    const messagesContainer = messagesContainerRef.current
+    if (!messagesContainer) return
+
+    const visibleIds = new Set<string>()
+    let rafId: number | null = null
+
+    const updateActiveFromAll = () => {
+      // Don't update active message if user is manually navigating
+      if (isManualNavigatingRef.current) return
+
+      // Create array of all messages with their positions
+      const messagesArray: Array<{ id: string; element: HTMLDivElement; rect: DOMRect }> = []
+      messageRefs.current.forEach((element, id) => {
+        const rect = element.getBoundingClientRect()
+        messagesArray.push({ id, element, rect })
+      })
+
+      // Sort by position
+      messagesArray.sort((a, b) => a.rect.top - b.rect.top)
+
+      const containerRect = messagesContainer.getBoundingClientRect()
+      const containerTop = containerRect.top
+      const containerBottom = containerRect.bottom
+
+      let targetId: string | null = null
+
+      // Pick the first fully visible message, otherwise the first partially visible
+      for (const msg of messagesArray) {
+        const isFullyVisible = msg.rect.top >= containerTop && msg.rect.bottom <= containerBottom
+        const isPartiallyVisible = msg.rect.bottom > containerTop && msg.rect.top < containerBottom
+
+        if (isFullyVisible) {
+          targetId = msg.id
+          break
+        } else if (isPartiallyVisible && !targetId) {
+          targetId = msg.id
+        }
+      }
+
+      if (targetId && targetId !== activeMessageIdRef.current) {
+        setActiveMessageId(targetId)
+      }
+    }
+
+    const updateActiveFromVisible = () => {
+      const manualTargetId = manualTargetIdRef.current
+      if (isManualNavigatingRef.current && manualTargetId) {
+        const targetElement = messageRefs.current.get(manualTargetId)
+        if (targetElement) {
+          const containerRect = messagesContainer.getBoundingClientRect()
+          const targetRect = targetElement.getBoundingClientRect()
+          const nearTop = targetRect.top >= containerRect.top && targetRect.top <= containerRect.top + 5
+
+          if (!nearTop) {
+            return
+          }
+        }
+        isManualNavigatingRef.current = false
+        manualTargetIdRef.current = null
+      }
+
+      if (bottomLockRef.current) {
+        const lastIndex = data.session.messages.length - 1
+        const lastId = lastIndex >= 0 ? `message-${lastIndex}` : null
+        if (lastId && lastId !== activeMessageIdRef.current) {
+          setActiveMessageId(lastId)
+        }
+        return
+      }
+
+      if (visibleIds.size === 0) {
+        updateActiveFromAll()
+        return
+      }
+
+      const containerRect = messagesContainer.getBoundingClientRect()
+      const containerTop = containerRect.top
+      const containerBottom = containerRect.bottom
+      let targetId: string | null = null
+
+      const visibleElements = Array.from(visibleIds)
+        .map((id) => {
+          const element = messageRefs.current.get(id)
+          if (!element) return null
+          return { id, rect: element.getBoundingClientRect() }
+        })
+        .filter((item): item is { id: string; rect: DOMRect } => Boolean(item))
+
+      if (visibleElements.length === 0) {
+        updateActiveFromAll()
+        return
+      }
+
+      visibleElements.sort((a, b) => a.rect.top - b.rect.top)
+      for (const msg of visibleElements) {
+        const isFullyVisible = msg.rect.top >= containerTop && msg.rect.bottom <= containerBottom
+        const isPartiallyVisible = msg.rect.bottom > containerTop && msg.rect.top < containerBottom
+
+        if (isFullyVisible) {
+          targetId = msg.id
+          break
+        } else if (isPartiallyVisible && !targetId) {
+          targetId = msg.id
+        }
+      }
+
+      if (targetId && targetId !== activeMessageIdRef.current) {
+        setActiveMessageId(targetId)
+      }
+    }
+
+    const scheduleUpdate = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        updateActiveFromVisible()
+      })
+    }
+
+    updateActiveMessageRef.current = updateActiveFromVisible
+
     const observer = new IntersectionObserver(
       (entries) => {
-        // Don't update active message if user is manually navigating
-        if (isManualNavigatingRef.current) return
-
-        entries.forEach((entry) => {
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.messageId
+          if (!id) continue
           if (entry.isIntersecting) {
-            const id = entry.target.getAttribute('data-message-id')
-            if (id) {
-              setActiveMessageId(id)
-            }
+            visibleIds.add(id)
+          } else {
+            visibleIds.delete(id)
           }
-        })
+        }
+        scheduleUpdate()
       },
-      {
-        rootMargin: '-50% 0px -50% 0px',
-        threshold: 0
-      }
+      { root: messagesContainer, threshold: [0, 0.1, 0.5, 1] }
     )
 
-    messageRefs.current.forEach((element) => {
-      observer.observe(element)
-    })
+    messageRefs.current.forEach((element) => observer.observe(element))
+    scheduleUpdate()
 
     return () => {
       observer.disconnect()
+      updateActiveMessageRef.current = null
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
     }
-  }, [data?.session?.messages])
+  }, [data?.session?.messages, messagesContainerEl])
+
+  useEffect(() => {
+    activeMessageIdRef.current = activeMessageId
+  }, [activeMessageId])
+
+  useEffect(() => {
+    updateHeaderStyles(1)
+  }, [data?.session?.id])
+
+  const handleMessagesContainerRef = useCallback((el: HTMLDivElement | null) => {
+    messagesContainerRef.current = el
+    setMessagesContainerEl((prev) => (prev === el ? prev : el))
+  }, [])
 
   // Handle navigation from TOC
-  const handleNavigate = (id: string) => {
+  const handleNavigate = (id: string, isUserClick: boolean = false) => {
     // Immediately update active message
     setActiveMessageId(id)
 
-    // Set manual navigation flag
-    isManualNavigatingRef.current = true
+    // Only scroll content if this was a manual click
+    if (isUserClick) {
+      // Set manual navigation flag
+      isManualNavigatingRef.current = true
+      manualTargetIdRef.current = id
+      if (manualNavTimeoutRef.current) {
+        clearTimeout(manualNavTimeoutRef.current)
+        manualNavTimeoutRef.current = null
+      }
 
-    const element = messageRefs.current.get(id)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const element = messageRefs.current.get(id)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+
+      // Reset flag after scrolling completes
+      manualNavTimeoutRef.current = setTimeout(() => {
+        isManualNavigatingRef.current = false
+        manualTargetIdRef.current = null
+        manualNavTimeoutRef.current = null
+        updateActiveMessageRef.current?.()
+      }, 1500)
     }
-
-    // Reset flag after scrolling completes
-    setTimeout(() => {
-      isManualNavigatingRef.current = false
-    }, 1500)
   }
+
+  useEffect(() => {
+    return () => {
+      if (manualNavTimeoutRef.current) {
+        clearTimeout(manualNavTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (isLoading) {
     return (
@@ -157,30 +399,16 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
 
   // Calculate header size and visibility based on scroll
   // When scrolling up, show full header; when scrolling down, use scroll position
-  const effectiveScroll = isScrollingUp ? 0 : scrollY
-
-  // Single stage (0-80px): Everything shrinks together
-  const shrinkScale = Math.max(0, 1 - effectiveScroll / 80)
-
-  const metadataOpacity = shrinkScale
-  const projectOpacity = shrinkScale
-  const headerPaddingVertical = 14 + shrinkScale * 8 // 14px to 22px
-  const titleSize = 1.25 + shrinkScale * 0.25 // 1.25rem to 1.5rem (20px to 24px)
-
-  // Calculate metadata height for smooth collapse
-  const metadataHeight = metadataOpacity > 0 ? 'auto' : 0
-  // Show project badge when project name is hidden
-  const projectBadgeOpacity = Math.max(0, 1 - projectOpacity)
-
   return (
     <div ref={containerRef} className="h-full flex min-w-0">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
       {/* Header */}
       <div
+        ref={headerRef}
         className="border-b border-gray-700 bg-gray-800 flex-shrink-0 transition-all duration-200"
         style={{
-          padding: `${headerPaddingVertical}px 24px`,
+          padding: '22px 24px',
         }}
       >
         <div className="flex items-center gap-2">
@@ -190,30 +418,29 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
             </span>
           )}
           <h2
+            ref={titleRef}
             className="font-bold truncate flex-1 transition-all duration-200"
             style={{
-              fontSize: `${titleSize}rem`,
+              fontSize: '1.5rem',
             }}
           >
             {session?.title || 'Untitled Session'}
           </h2>
           {/* Project badge - shown when scrolled */}
-          {projectBadgeOpacity > 0 && (
-            <span
-              className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded transition-opacity duration-200"
-              style={{
-                opacity: projectBadgeOpacity,
-              }}
-            >
-              {session?.project}
-            </span>
-          )}
+          <span
+            ref={projectBadgeRef}
+            className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded transition-opacity duration-200"
+            style={{ opacity: 0 }}
+          >
+            {session?.project}
+          </span>
         </div>
         <div
+          ref={projectRef}
           className="text-xl text-gray-300 transition-all duration-200"
           style={{
-            opacity: projectOpacity,
-            height: projectOpacity > 0 ? 'auto' : 0,
+            opacity: 1,
+            height: 'auto',
             overflow: 'hidden',
             marginTop: '-2px',
           }}
@@ -221,12 +448,13 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
           {session?.project}
         </div>
         <div
+          ref={metadataRef}
           className="flex items-center gap-3 text-sm text-gray-400 transition-all duration-200"
           style={{
-            opacity: metadataOpacity,
-            height: metadataHeight,
+            opacity: 1,
+            height: 'auto',
             overflow: 'hidden',
-            marginTop: metadataOpacity > 0 ? '1rem' : 0,
+            marginTop: '1rem',
           }}
         >
           <span>
@@ -248,7 +476,10 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
       </div>
 
       {/* Messages Timeline */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6">
+      <div
+        ref={handleMessagesContainerRef}
+        className="flex-1 overflow-y-auto p-6"
+      >
         <div className="max-w-4xl mx-auto space-y-6">
           {session?.messages.map((message: any, index: number) => {
             const messageId = `message-${index}`

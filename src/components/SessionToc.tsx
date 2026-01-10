@@ -11,14 +11,13 @@ interface TocItem {
 interface SessionTocProps {
   messages: any[]
   activeId: string | null
-  onNavigate: (id: string) => void
+  onNavigate: (id: string, isUserClick?: boolean) => void
 }
 
 export default function SessionToc({ messages, activeId, onNavigate }: SessionTocProps) {
   const [tocItems, setTocItems] = useState<TocItem[]>([])
   const activeItemRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const isManualScrollingRef = useRef(false)
 
   useEffect(() => {
     const items: TocItem[] = messages.map((message, index) => {
@@ -57,9 +56,6 @@ export default function SessionToc({ messages, activeId, onNavigate }: SessionTo
 
   // Auto-scroll active item into view
   useEffect(() => {
-    // Don't auto-scroll if user is manually scrolling
-    if (isManualScrollingRef.current) return
-
     if (activeItemRef.current && containerRef.current) {
       const container = containerRef.current
       const activeItem = activeItemRef.current
@@ -69,30 +65,24 @@ export default function SessionToc({ messages, activeId, onNavigate }: SessionTo
 
       // Check if item is not fully visible
       if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
-        activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }
     }
   }, [activeId])
 
   const handleItemClick = (id: string) => {
-    // Set manual scrolling flag
-    isManualScrollingRef.current = true
-    onNavigate(id)
-
-    // Reset flag after scrolling completes (smooth scroll takes ~500-1000ms)
-    setTimeout(() => {
-      isManualScrollingRef.current = false
-    }, 1500)
+    // Pass true to indicate this is a manual click
+    onNavigate(id, true)
   }
 
   return (
-    <div ref={containerRef} className="w-full border-l border-gray-700 bg-gray-800 overflow-y-auto h-full">
-      <div className="p-4 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+    <div className="w-full h-full flex flex-col border-l border-gray-700 bg-gray-800">
+      <div className="p-4 border-b border-gray-700 bg-gray-800 flex-shrink-0">
         <h3 className="text-sm font-semibold text-gray-300">Table of Contents</h3>
         <p className="text-xs text-gray-500 mt-1">{tocItems.length} messages</p>
       </div>
 
-      <nav className="p-2">
+      <nav ref={containerRef} className="p-2 flex-1 overflow-y-auto">
         {tocItems.map((item, index) => (
           <div key={item.id} className="mb-1">
             <button
@@ -103,6 +93,7 @@ export default function SessionToc({ messages, activeId, onNavigate }: SessionTo
                   ? 'bg-blue-900/50 text-blue-200 border-l-2 border-blue-400'
                   : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
+              style={{ scrollMarginTop: '16px', scrollMarginBottom: '16px' }}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span
