@@ -62,6 +62,14 @@ function AppContent() {
     navigate(`/sessions/${id}`)
   }
 
+  // Find selected session info from the session list (including agent sessions)
+  const selectedSessionInfo = selectedSessionId
+    ? data?.projects
+        .flatMap(p => p.sessions)
+        .flatMap(s => [s, ...(s.agentSessions || [])])
+        .find(s => s.id === selectedSessionId)
+    : null
+
   // Handle scroll for header shrinking with direction detection
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current
@@ -260,7 +268,7 @@ function AppContent() {
         {isDashboard ? (
           <Dashboard />
         ) : selectedSessionId ? (
-          <SessionDetail sessionId={selectedSessionId} />
+          <SessionDetail sessionId={selectedSessionId} sessionInfo={selectedSessionInfo} />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">

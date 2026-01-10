@@ -4,8 +4,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SessionToc from './SessionToc'
 
+interface Session {
+  id: string
+  project: string
+  timestamp: string
+  messages?: any[]
+  messageCount: number
+  title?: string
+  isAgent?: boolean
+  agentSessions?: Session[]
+}
+
 interface SessionDetailProps {
   sessionId: string
+  sessionInfo?: Session | null
 }
 
 const TOC_WIDTH = 256 // 16rem / 64 * 4
@@ -13,7 +25,7 @@ const MIN_CONTENT_WIDTH = 640 // Minimum width for readable content
 const CONTENT_MAX_WIDTH = 896 // Tailwind max-w-4xl
 const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 
-export default function SessionDetail({ sessionId }: SessionDetailProps) {
+export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailProps) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
   const [messagesContainerEl, setMessagesContainerEl] = useState<HTMLDivElement | null>(null)
@@ -379,10 +391,62 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
     }
   }, [])
 
-  if (isLoading) {
+  // Show loading state only if we don't have any data yet (neither from API nor from session list)
+  if (isLoading && !data && !sessionInfo) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-400">Loading session...</div>
+      <div className="h-full flex min-w-0">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0" style={{ minWidth: `${MIN_CONTENT_WIDTH}px` }}>
+          {/* Header Skeleton */}
+          <div className="border-b border-gray-700 bg-gray-800 flex-shrink-0 p-6">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-700 rounded w-3/4 mb-3"></div>
+              <div className="h-5 bg-gray-700 rounded w-1/3 mb-4"></div>
+              <div className="flex items-center gap-3">
+                <div className="h-4 bg-gray-700 rounded w-32"></div>
+                <div className="h-4 bg-gray-700 rounded w-4"></div>
+                <div className="h-4 bg-gray-700 rounded w-24"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages Skeleton */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="border-l-2 border-gray-700 pl-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-5 bg-gray-700 rounded w-16"></div>
+                    <div className="h-4 bg-gray-700 rounded w-8"></div>
+                    <div className="h-4 bg-gray-700 rounded w-16"></div>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-700 rounded w-full"></div>
+                      <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+                      <div className="h-4 bg-gray-700 rounded w-4/5"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* TOC Skeleton */}
+        {showToc && (
+          <div style={{ width: `${TOC_WIDTH}px`, flexShrink: 0 }} className="border-l border-gray-700 bg-gray-800/30 p-4">
+            <div className="animate-pulse space-y-3">
+              <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-700 rounded w-full"></div>
+              <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+              <div className="h-4 bg-gray-700 rounded w-full"></div>
+              <div className="h-4 bg-gray-700 rounded w-4/5"></div>
+              <div className="h-4 bg-gray-700 rounded w-full"></div>
+              <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -395,7 +459,8 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
     )
   }
 
-  const session = data?.session
+  // Use session data from API or fall back to basic session info from list
+  const session = data?.session || sessionInfo
 
   // Calculate header size and visibility based on scroll
   // When scrolling up, show full header; when scrolling down, use scroll position
@@ -480,8 +545,29 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
         ref={handleMessagesContainerRef}
         className="flex-1 overflow-y-auto p-6"
       >
+        {isLoading && !session?.messages ? (
+          // Show skeleton only when messages are not available
+          <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border-l-2 border-gray-700 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-5 bg-gray-700 rounded w-16"></div>
+                  <div className="h-4 bg-gray-700 rounded w-8"></div>
+                  <div className="h-4 bg-gray-700 rounded w-16"></div>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+                    <div className="h-4 bg-gray-700 rounded w-4/5"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="max-w-4xl mx-auto space-y-6">
-          {session?.messages.map((message: any, index: number) => {
+          {session?.messages?.map((message: any, index: number) => {
             const messageId = `message-${index}`
             return (
             <div
@@ -573,6 +659,7 @@ export default function SessionDetail({ sessionId }: SessionDetailProps) {
             </div>
           )})}
         </div>
+        )}
       </div>
       </div>
 
