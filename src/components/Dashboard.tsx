@@ -237,10 +237,16 @@ function Dashboard() {
     const percentile95Index = Math.floor(sortedTokens.length * 0.95)
     const maxDailyTokens = Math.max(sortedTokens[percentile95Index] || 1, 1)
 
+    // Calculate daily min/max/average
+    const dailyTotals = daily.map(d => d.usage.totalTokens)
+    const minDailyTokens = dailyTotals.length > 0 ? Math.min(...dailyTotals) : 0
+    const maxDailyTokensActual = dailyTotals.length > 0 ? Math.max(...dailyTotals) : 0
+    const avgDailyTokens = dailyTotals.length > 0 ? dailyTotals.reduce((sum, val) => sum + val, 0) / dailyTotals.length : 0
+
     return (
       <>
         {/* Date Range Display */}
-        <p className="text-gray-400 mb-8">
+        <p className="text-gray-400 mb-6">
           {format(new Date(overview.dateRange.start), 'MMM d, yyyy')} - {format(new Date(overview.dateRange.end), 'MMM d, yyyy')}
         </p>
 
@@ -277,13 +283,22 @@ function Dashboard() {
           <h2 className="text-2xl font-bold mb-6">Token Breakdown</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-gray-300">Input Tokens</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-300">Input & Output Tokens</h3>
               <ProgressBar
                 label="Regular Input"
                 value={overview.total.inputTokens}
                 max={overview.total.totalTokens}
                 color="blue"
               />
+              <ProgressBar
+                label="Output Tokens"
+                value={overview.total.outputTokens}
+                max={overview.total.totalTokens}
+                color="green"
+              />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-gray-300">Cache Details</h3>
               <ProgressBar
                 label="Cache Creation"
                 value={overview.total.cacheCreationTokens}
@@ -295,15 +310,6 @@ function Dashboard() {
                 value={overview.total.cacheReadTokens}
                 max={overview.total.totalTokens}
                 color="cyan"
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-gray-300">Output & Cache Details</h3>
-              <ProgressBar
-                label="Output Tokens"
-                value={overview.total.outputTokens}
-                max={overview.total.totalTokens}
-                color="green"
               />
               <ProgressBar
                 label="5-minute Cache"
@@ -493,42 +499,58 @@ function Dashboard() {
               <span>Output</span>
             </div>
           </div>
+          {daily.length > 0 && (
+            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-700">
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Min Daily</div>
+                <div className="font-mono text-sm text-gray-300">{formatNumber(minDailyTokens)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Avg Daily</div>
+                <div className="font-mono text-sm text-blue-400">{formatNumber(avgDailyTokens)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-500 mb-1">Max Daily</div>
+                <div className="font-mono text-sm text-green-400">{formatNumber(maxDailyTokensActual)}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* By Project */}
         <div className="bg-gray-800/50 rounded-lg p-6 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6">Usage by Project</h2>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {byProject.slice(0, 10).map((project, index) => {
               const totalTokens = byProject.reduce((sum, p) => sum + p.usage.totalTokens, 0)
               const percentage = (project.usage.totalTokens / totalTokens) * 100
 
               return (
-                <div key={index} className="border-b border-gray-700 pb-4 last:border-b-0 last:pb-0">
-                  <div className="flex justify-between items-start mb-2">
+                <div key={index} className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+                  <div className="flex justify-between items-baseline mb-2">
                     <div className="flex-1">
                       <div className="font-semibold text-gray-200">{project.displayName}</div>
                       <div className="text-xs text-gray-500">{project.sessionCount} sessions</div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0 ml-4">
                       <div className="font-mono text-sm">{formatNumber(project.usage.totalTokens)}</div>
                       <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-xs">
-                    <div>
+                    <div className="text-left">
                       <div className="text-gray-500">Input</div>
                       <div className="text-blue-400 font-mono">{formatNumber(project.usage.inputTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <div className="text-gray-500">Cache Create</div>
                       <div className="text-purple-400 font-mono">{formatNumber(project.usage.cacheCreationTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <div className="text-gray-500">Cache Read</div>
                       <div className="text-cyan-400 font-mono">{formatNumber(project.usage.cacheReadTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-right">
                       <div className="text-gray-500">Output</div>
                       <div className="text-green-400 font-mono">{formatNumber(project.usage.outputTokens)}</div>
                     </div>
@@ -566,19 +588,19 @@ function Dashboard() {
                     />
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-xs mt-2">
-                    <div>
+                    <div className="text-left">
                       <div className="text-gray-500">Input</div>
                       <div className="text-blue-400 font-mono">{formatNumber(model.usage.inputTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <div className="text-gray-500">Cache Create</div>
                       <div className="text-purple-400 font-mono">{formatNumber(model.usage.cacheCreationTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <div className="text-gray-500">Cache Read</div>
                       <div className="text-cyan-400 font-mono">{formatNumber(model.usage.cacheReadTokens)}</div>
                     </div>
-                    <div>
+                    <div className="text-right">
                       <div className="text-gray-500">Output</div>
                       <div className="text-green-400 font-mono">{formatNumber(model.usage.outputTokens)}</div>
                     </div>
@@ -823,8 +845,8 @@ function Dashboard() {
     <div className="h-screen overflow-y-auto bg-gray-900 text-white p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header - Always visible */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-2">
             <h1 className="text-4xl font-bold">Dashboard</h1>
             <div className="flex gap-2">
               <button
@@ -865,6 +887,8 @@ function Dashboard() {
         {isLoading ? (
           <>
             {/* Loading Skeleton */}
+            {/* Date Range Skeleton */}
+            <div className="h-5 bg-gray-700 rounded w-64 mb-8 animate-pulse"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <SkeletonCard />
               <SkeletonCard />
