@@ -692,10 +692,10 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
               // Generate filename from session title and timestamp
               const timestamp = session.timestamp ? format(new Date(session.timestamp), 'yyyy-MM-dd-HHmmss') : 'unknown'
               const title = (session.title || 'claude-session')
-                .replace(/[^a-z0-9]/gi, '-')
-                .replace(/-+/g, '-')
-                .replace(/^-|-$/g, '')
-                .toLowerCase()
+                .replace(/[<>:"/\\|?*]/g, '-')  // Remove only filesystem-unsafe characters
+                .replace(/\s+/g, '-')            // Replace whitespace with dash
+                .replace(/-+/g, '-')             // Collapse multiple dashes
+                .replace(/^-|-$/g, '')           // Remove leading/trailing dashes
                 .substring(0, 50)
 
               a.download = `${title}-${timestamp}.html`
