@@ -680,6 +680,8 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
           {/* Save as HTML button */}
           <button
             onClick={() => {
+              if (!session) return
+
               // Generate HTML content
               const htmlContent = formatSessionAsHtml(session)
 
