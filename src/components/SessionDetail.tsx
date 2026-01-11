@@ -101,6 +101,8 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
     }
     if (projectBadgeRef.current) {
       projectBadgeRef.current.style.opacity = `${projectBadgeOpacity}`
+      projectBadgeRef.current.style.pointerEvents = projectBadgeOpacity > 0 ? 'auto' : 'none'
+      projectBadgeRef.current.style.position = projectBadgeOpacity > 0 ? 'static' : 'absolute'
     }
   }
 
