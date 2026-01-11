@@ -19,7 +19,6 @@ interface Session {
 interface SessionDetailProps {
   sessionId: string
   sessionInfo?: Session | null
-  isProjectDashboard?: boolean
 }
 
 const TOC_WIDTH = 256 // 16rem / 64 * 4
@@ -27,11 +26,184 @@ const MIN_CONTENT_WIDTH = 640 // Minimum width for readable content
 const CONTENT_MAX_WIDTH = 896 // Tailwind max-w-4xl
 const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 
-export default function SessionDetail({ sessionId, sessionInfo, isProjectDashboard = false }: SessionDetailProps) {
+// Format session content as HTML document
+function formatSessionAsHtml(session: Session): string {
+  const escapeHtml = (text: string) => {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  }
+
+  const messagesHtml = session.messages?.map((msg: any, idx: number) => {
+    let contentHtml = ''
+
+    if (msg.message?.content && Array.isArray(msg.message.content)) {
+      msg.message.content.forEach((item: any) => {
+        if (item.type === 'text') {
+          contentHtml += `<div class="message-text">${escapeHtml(item.text).replace(/\n/g, '<br>')}</div>`
+        } else if (item.type === 'tool_use') {
+          contentHtml += `
+            <div class="tool-use">
+              <div class="tool-header">🔧 Tool: ${escapeHtml(item.name)}</div>
+              <pre class="tool-content">${escapeHtml(JSON.stringify(item.input, null, 2))}</pre>
+            </div>
+          `
+        } else if (item.type === 'tool_result') {
+          const resultContent = typeof item.content === 'string' ? item.content : JSON.stringify(item.content, null, 2)
+          contentHtml += `
+            <div class="tool-result">
+              <div class="tool-header">✓ Tool Result</div>
+              <pre class="tool-content">${escapeHtml(resultContent)}</pre>
+            </div>
+          `
+        }
+      })
+    } else if (typeof msg.message?.content === 'string') {
+      contentHtml = `<div class="message-text">${escapeHtml(msg.message.content).replace(/\n/g, '<br>')}</div>`
+    }
+
+    const roleClass = msg.type === 'user' ? 'user' : msg.type === 'assistant' ? 'assistant' : 'system'
+    const timestamp = msg.timestamp ? format(new Date(msg.timestamp), 'HH:mm:ss') : ''
+
+    return `
+      <div class="message ${roleClass}">
+        <div class="message-header">
+          <span class="message-role">${msg.type || 'system'}</span>
+          <span class="message-number">#${idx + 1}</span>
+          ${timestamp ? `<span class="message-time">${timestamp}</span>` : ''}
+        </div>
+        <div class="message-content">
+          ${contentHtml}
+        </div>
+      </div>
+    `
+  }).join('\n') || ''
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(session.title || 'Claude Session')}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #e5e7eb;
+      background: #111827;
+      padding: 2rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    .header {
+      border-bottom: 2px solid #374151;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #f9fafb;
+    }
+    .metadata {
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+    .message {
+      border-left: 3px solid #374151;
+      padding-left: 1rem;
+      margin-bottom: 2rem;
+    }
+    .message.user { border-left-color: #3b82f6; }
+    .message.assistant { border-left-color: #10b981; }
+    .message-header {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .message-role {
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .message.user .message-role { background: #1e3a8a; color: #bfdbfe; }
+    .message.assistant .message-role { background: #064e3b; color: #a7f3d0; }
+    .message.system .message-role { background: #374151; color: #d1d5db; }
+    .message-number, .message-time {
+      font-size: 0.75rem;
+      color: #6b7280;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+    .message-content {
+      background: #1f2937;
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+    .message-text {
+      color: #e5e7eb;
+      margin-bottom: 1rem;
+    }
+    .message-text:last-child { margin-bottom: 0; }
+    .tool-use, .tool-result {
+      margin-top: 1rem;
+      border: 1px solid #374151;
+      border-radius: 0.375rem;
+      overflow: hidden;
+    }
+    .tool-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-weight: 600;
+    }
+    .tool-use .tool-header {
+      background: #451a03;
+      color: #fcd34d;
+    }
+    .tool-result .tool-header {
+      background: #064e3b;
+      color: #6ee7b7;
+    }
+    .tool-content {
+      padding: 0.75rem;
+      background: #0f172a;
+      color: #9ca3af;
+      font-size: 0.75rem;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${escapeHtml(session.title || 'Claude Session')}</h1>
+      <div class="metadata">
+        <div>Project: ${escapeHtml(session.projectName || session.projectId || 'Unknown')}</div>
+        ${session.timestamp ? `<div>Date: ${format(new Date(session.timestamp), 'PPpp')}</div>` : ''}
+        <div>${session.messages?.length || 0} message${session.messages?.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+    <div class="messages">
+      ${messagesHtml}
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailProps) {
   const navigate = useNavigate()
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
   const [messagesContainerEl, setMessagesContainerEl] = useState<HTMLDivElement | null>(null)
+  const [isCopied, setIsCopied] = useState(false)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
   const activeMessageIdRef = useRef<string | null>(null)
@@ -505,30 +677,73 @@ export default function SessionDetail({ sessionId, sessionInfo, isProjectDashboa
           >
             {session?.projectName || session?.projectId}
           </button>
-          {/* Project Dashboard button */}
+          {/* Save as HTML button */}
           <button
-            onClick={() => !isProjectDashboard && session?.projectId && navigate(`/projects/${session.projectId}`)}
-            disabled={isProjectDashboard}
-            className={`flex items-center justify-center p-2 rounded-lg transition-colors flex-shrink-0 ${
-              isProjectDashboard
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+            onClick={() => {
+              // Generate HTML content
+              const htmlContent = formatSessionAsHtml(session)
+
+              // Create blob and download
+              const blob = new Blob([htmlContent], { type: 'text/html' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+
+              // Generate filename from session title and timestamp
+              const timestamp = session.timestamp ? format(new Date(session.timestamp), 'yyyy-MM-dd-HHmmss') : 'unknown'
+              const title = (session.title || 'claude-session')
+                .replace(/[^a-z0-9]/gi, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
+                .toLowerCase()
+                .substring(0, 50)
+
+              a.download = `${title}-${timestamp}.html`
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+
+              // Show feedback
+              setIsCopied(true)
+              setTimeout(() => setIsCopied(false), 2000)
+            }}
+            className={`flex items-center justify-center p-2 rounded-lg transition-all flex-shrink-0 ${
+              isCopied
+                ? 'bg-green-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
             }`}
-            title={isProjectDashboard ? "Already on Project Dashboard" : "Project Dashboard"}
+            title={isCopied ? "Saved!" : "Save as HTML"}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
+            {isCopied ? (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            )}
           </button>
         </div>
         <div
