@@ -49,6 +49,7 @@ function AppContent() {
   const [isResizing, setIsResizing] = useState(false)
   const [scrollY, setScrollY] = useState(0)
   const [isScrollingUp, setIsScrollingUp] = useState(false)
+  const [optimisticSelectedId, setOptimisticSelectedId] = useState<string | null>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
@@ -63,8 +64,16 @@ function AppContent() {
   })
 
   const handleSelectSession = (id: string) => {
+    setOptimisticSelectedId(id)
     navigate(`/sessions/${id}`)
   }
+
+  // Reset optimistic selection when URL params sync up
+  useEffect(() => {
+    if (optimisticSelectedId && optimisticSelectedId === selectedSessionId) {
+      setOptimisticSelectedId(null)
+    }
+  }, [selectedSessionId, optimisticSelectedId])
 
   // Find selected session info from the session list (including agent sessions)
   const selectedSessionInfo = selectedSessionId
@@ -278,7 +287,7 @@ function AppContent() {
             ) : (
               <SessionList
                 projects={data?.projects || []}
-                selectedId={selectedSessionId}
+                selectedId={optimisticSelectedId || selectedSessionId}
                 onSelect={handleSelectSession}
               />
             )}
