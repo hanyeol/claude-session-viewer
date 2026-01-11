@@ -40,7 +40,10 @@ function formatSessionAsHtml(session: Session): string {
   const messagesHtml = session.messages?.map((msg: any, idx: number) => {
     let contentHtml = ''
 
-    if (msg.message?.content && Array.isArray(msg.message.content)) {
+    // Handle special message types (queue-operation, enqueue, etc.)
+    if (msg.type !== 'user' && msg.type !== 'assistant') {
+      contentHtml = `<pre class="tool-content">${escapeHtml(JSON.stringify(msg, null, 2))}</pre>`
+    } else if (msg.message?.content && Array.isArray(msg.message.content)) {
       msg.message.content.forEach((item: any) => {
         if (item.type === 'text') {
           contentHtml += `<div class="message-text">${escapeHtml(item.text).replace(/\n/g, '<br>')}</div>`
@@ -204,6 +207,7 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
   const [showToc, setShowToc] = useState(true)
   const [messagesContainerEl, setMessagesContainerEl] = useState<HTMLDivElement | null>(null)
   const [isCopied, setIsCopied] = useState(false)
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const isManualNavigatingRef = useRef(false)
   const activeMessageIdRef = useRef<string | null>(null)
@@ -853,6 +857,76 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
                     </span>
                   )}
                 </div>
+                <button
+                  onClick={() => {
+                    // Extract all content from message (including tools)
+                    let fullContent = ''
+
+                    // Handle special message types (queue-operation, enqueue, etc.) - copy as JSON
+                    if (message.type !== 'user' && message.type !== 'assistant') {
+                      fullContent = JSON.stringify(message, null, 2)
+                    } else if (message.message?.content && Array.isArray(message.message.content)) {
+                      message.message.content.forEach((item: any) => {
+                        if (item.type === 'text') {
+                          fullContent += item.text + '\n\n'
+                        } else if (item.type === 'tool_use') {
+                          fullContent += `🔧 Tool: ${item.name}\n`
+                          fullContent += JSON.stringify(item.input, null, 2) + '\n\n'
+                        } else if (item.type === 'tool_result') {
+                          fullContent += '✓ Tool Result\n'
+                          const resultContent = typeof item.content === 'string'
+                            ? item.content
+                            : JSON.stringify(item.content, null, 2)
+                          fullContent += resultContent + '\n\n'
+                        }
+                      })
+                    } else if (typeof message.message?.content === 'string') {
+                      fullContent = message.message.content
+                    }
+
+                    if (fullContent) {
+                      navigator.clipboard.writeText(fullContent.trim())
+                      setCopiedMessageIndex(index)
+                      setTimeout(() => setCopiedMessageIndex(null), 1000)
+                    }
+                  }}
+                  className={`p-1.5 rounded transition-colors ${
+                    copiedMessageIndex === index
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
+                  }`}
+                  title={copiedMessageIndex === index ? "Copied!" : "Copy message text"}
+                >
+                  {copiedMessageIndex === index ? (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  )}
+                </button>
               </div>
 
               {/* Message Content */}
