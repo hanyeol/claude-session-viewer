@@ -222,12 +222,7 @@ function AppContent() {
                 fontSize: `${titleSize}rem`,
               }}
             >
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="hover:text-blue-400 transition-colors"
-              >
-                Claude Sessions
-              </button>
+              Claude Sessions
             </h1>
             <p
               className="text-sm text-gray-400 mt-1 transition-opacity duration-200"
