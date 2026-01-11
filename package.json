@@ -1,6 +1,6 @@
 {
   "name": "claude-session-viewer",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "type": "module",
   "bin": {
     "claude-session-viewer": "./bin/cli.js"
