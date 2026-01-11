@@ -7,7 +7,7 @@ import type {
   WeekdayActivityStats
 } from '../types.js'
 import { PRICING, DEFAULT_PRICING_MODEL, WEEKDAY_NAMES } from '../claude/config.js'
-import { aggregateTokenUsage } from './tokenUsage.js'
+import { aggregateTokenUsage, calculateCost } from './tokenUsage.js'
 import { fillMissingDates } from './utils.js'
 import { aggregateAllProjects, aggregateProject } from './aggregator.js'
 
@@ -39,14 +39,17 @@ export async function getOverallStatistics(days: string | number = 7): Promise<U
   // Calculate totals
   const totalUsage = aggregateTokenUsage(data.allUsages)
   const defaultPricing = PRICING[DEFAULT_PRICING_MODEL]
-  const totalCost = data.allCosts.reduce((sum, cost) => sum + cost, 0)
+  const costBreakdown = calculateCost(totalUsage, defaultPricing)
   const savedCost = (data.totalCacheRead / 1_000_000) * (defaultPricing.input - defaultPricing.cacheRead)
 
-  // Calculate start date for daily stats
+  // Determine date range first (this drives all other date-based statistics)
   const startDate = daysParam === 'all' && data.minDate
     ? data.minDate
-    : new Date(cutoffDate.getTime() + 24 * 60 * 60 * 1000)
-  const daily = fillMissingDates(data.dailyMap, startDate, data.minDate, data.maxDate)
+    : cutoffDate
+  const endDate = new Date()
+
+  // Fill daily stats based on the determined date range
+  const daily = fillMissingDates(data.dailyMap, startDate, endDate)
 
   // Build project stats
   const byProject: ProjectUsageStats[] = Array.from(data.projectMap.entries())
@@ -107,11 +110,8 @@ export async function getOverallStatistics(days: string | number = 7): Promise<U
       sessionCount: data.totalSessions,
       messageCount: data.totalMessages,
       dateRange: {
-        start: (daysParam === 'all'
-          ? data.minDate
-          : new Date(cutoffDate.getTime() + 24 * 60 * 60 * 1000)
-        )?.toISOString() || new Date().toISOString(),
-        end: new Date().toISOString()
+        start: startDate?.toISOString() || endDate.toISOString(),
+        end: endDate.toISOString()
       }
     },
     daily,
@@ -122,21 +122,12 @@ export async function getOverallStatistics(days: string | number = 7): Promise<U
       totalCacheRead: data.totalCacheRead,
       ephemeral5mTokens: data.ephemeral5mTokens,
       ephemeral1hTokens: data.ephemeral1hTokens,
-      cacheHitRate: data.totalCacheCreation > 0
-        ? (data.totalCacheRead / data.totalCacheCreation) * 100
+      cacheHitRate: (data.totalCacheCreation + data.totalCacheRead) > 0
+        ? (data.totalCacheRead / (data.totalCacheCreation + data.totalCacheRead)) * 100
         : 0,
       estimatedSavings: savedCost
     },
-    cost: data.allCosts.reduce(
-      (acc, cost) => ({
-        inputCost: acc.inputCost + cost,
-        outputCost: acc.outputCost + cost,
-        cacheCreationCost: acc.cacheCreationCost + cost,
-        cacheReadCost: acc.cacheReadCost + cost,
-        totalCost: acc.totalCost + cost
-      }),
-      { inputCost: 0, outputCost: 0, cacheCreationCost: 0, cacheReadCost: 0, totalCost: 0 }
-    ),
+    cost: costBreakdown,
     productivity: {
       toolUsage,
       totalToolCalls,
@@ -164,14 +155,17 @@ export async function getProjectStatistics(projectId: string, days: string | num
   // Calculate totals
   const totalUsage = aggregateTokenUsage(data.allUsages)
   const defaultPricing = PRICING[DEFAULT_PRICING_MODEL]
-  const totalCost = data.allCosts.reduce((sum, cost) => sum + cost, 0)
+  const costBreakdown = calculateCost(totalUsage, defaultPricing)
   const savedCost = (data.totalCacheRead / 1_000_000) * (defaultPricing.input - defaultPricing.cacheRead)
 
-  // Calculate start date for daily stats
+  // Determine date range first (this drives all other date-based statistics)
   const startDate = daysParam === 'all' && data.minDate
     ? data.minDate
-    : new Date(cutoffDate.getTime() + 24 * 60 * 60 * 1000)
-  const daily = fillMissingDates(data.dailyMap, startDate, data.minDate, data.maxDate)
+    : cutoffDate
+  const endDate = new Date()
+
+  // Fill daily stats based on the determined date range
+  const daily = fillMissingDates(data.dailyMap, startDate, endDate)
 
   // Build project stats (single project)
   const projectData = data.projectMap.get(projectId)
@@ -231,11 +225,8 @@ export async function getProjectStatistics(projectId: string, days: string | num
       sessionCount: data.totalSessions,
       messageCount: data.totalMessages,
       dateRange: {
-        start: (daysParam === 'all'
-          ? data.minDate
-          : new Date(cutoffDate.getTime() + 24 * 60 * 60 * 1000)
-        )?.toISOString() || new Date().toISOString(),
-        end: new Date().toISOString()
+        start: startDate?.toISOString() || endDate.toISOString(),
+        end: endDate.toISOString()
       }
     },
     daily,
@@ -246,21 +237,12 @@ export async function getProjectStatistics(projectId: string, days: string | num
       totalCacheRead: data.totalCacheRead,
       ephemeral5mTokens: data.ephemeral5mTokens,
       ephemeral1hTokens: data.ephemeral1hTokens,
-      cacheHitRate: data.totalCacheCreation > 0
-        ? (data.totalCacheRead / data.totalCacheCreation) * 100
+      cacheHitRate: (data.totalCacheCreation + data.totalCacheRead) > 0
+        ? (data.totalCacheRead / (data.totalCacheCreation + data.totalCacheRead)) * 100
         : 0,
       estimatedSavings: savedCost
     },
-    cost: data.allCosts.reduce(
-      (acc, cost) => ({
-        inputCost: acc.inputCost + cost,
-        outputCost: acc.outputCost + cost,
-        cacheCreationCost: acc.cacheCreationCost + cost,
-        cacheReadCost: acc.cacheReadCost + cost,
-        totalCost: acc.totalCost + cost
-      }),
-      { inputCost: 0, outputCost: 0, cacheCreationCost: 0, cacheReadCost: 0, totalCost: 0 }
-    ),
+    cost: costBreakdown,
     productivity: {
       toolUsage,
       totalToolCalls,

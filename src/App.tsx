@@ -10,7 +10,8 @@ const queryClient = new QueryClient()
 
 interface Session {
   id: string
-  project: string
+  projectId: string
+  projectName?: string
   timestamp: string
   messages: any[]
   messageCount: number
@@ -20,8 +21,8 @@ interface Session {
 }
 
 interface ProjectGroup {
+  id: string
   name: string
-  displayName: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
@@ -37,7 +38,7 @@ function AppContent() {
   const location = useLocation()
   const params = useParams()
   const selectedSessionId = params.sessionId || null
-  const projectId = params.projectId || null
+  const selectedProjectId = params.projectId || null
   const isDashboard = location.pathname === '/dashboard'
   const isProjectDashboard = location.pathname.startsWith('/projects/') && !location.pathname.includes('/sessions')
 
@@ -71,6 +72,11 @@ function AppContent() {
         .flatMap(p => p.sessions)
         .flatMap(s => [s, ...(s.agentSessions || [])])
         .find(s => s.id === selectedSessionId)
+    : null
+
+  // Find selected project info from the session list
+  const selectedProjectInfo = selectedProjectId
+    ? data?.projects.find(p => p.id === selectedProjectId)
     : null
 
   // Handle scroll for header shrinking with direction detection
@@ -271,7 +277,7 @@ function AppContent() {
         {isDashboard ? (
           <Dashboard />
         ) : isProjectDashboard ? (
-          <ProjectDashboard />
+          <ProjectDashboard projectInfo={selectedProjectInfo} />
         ) : selectedSessionId ? (
           <SessionDetail sessionId={selectedSessionId} sessionInfo={selectedSessionInfo} />
         ) : (

@@ -10,6 +10,16 @@ import { collectAgentDescriptions } from '../claude/sessions/agents.js'
 import { shouldSkipSession, isAgentSession, isEmptyFile } from '../claude/sessions/filters.js'
 
 /**
+ * Format date to YYYY-MM-DD in local timezone
+ */
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
  * Aggregated statistics data structure
  */
 export interface AggregatedData {
@@ -92,8 +102,36 @@ function processMessage(
   message: any,
   sessionId: string,
   projectId: string,
-  data: AggregatedData
+  data: AggregatedData,
+  toolUseIdMap: Map<string, string> // Maps tool_use_id to tool name
 ): void {
+  // Process tool_result first (before extractTokenUsage check) since user messages don't have usage
+  if (message.type === 'user' && message.message?.content) {
+    const content = Array.isArray(message.message.content)
+      ? message.message.content
+      : [{ type: 'text', text: message.message.content }]
+
+    for (const item of content) {
+      if (item.type === 'tool_result') {
+        const toolUseId = item.tool_use_id
+        const toolName = toolUseIdMap.get(toolUseId)
+
+        // Count as successful if:
+        // 1. We can find the tool name from toolUseIdMap
+        // 2. Either is_error is false/undefined, OR there's no error field at all
+        if (toolName) {
+          const isError = item.is_error === true
+          if (!isError) {
+            const stats = data.toolUsageMap.get(toolName)
+            if (stats) {
+              stats.successful++
+            }
+          }
+        }
+      }
+    }
+  }
+
   const result = extractTokenUsage(message)
   if (!result) return
 
@@ -116,7 +154,7 @@ function processMessage(
   data.allCosts.push(costBreakdown.totalCost)
 
   // Update daily map
-  const dateKey = messageDate.toISOString().split('T')[0]
+  const dateKey = formatDateLocal(messageDate)
   if (!data.dailyMap.has(dateKey)) {
     data.dailyMap.set(dateKey, {
       tokenUsage: createEmptyTokenUsage(),
@@ -193,7 +231,7 @@ function processMessage(
     data.ephemeral1hTokens += cacheCreation.ephemeral_1h_input_tokens || 0
   }
 
-  // Process tool usage
+  // Process tool_use in assistant messages
   if (message.message?.role === 'assistant' && message.message?.content) {
     const content = Array.isArray(message.message.content)
       ? message.message.content
@@ -202,27 +240,17 @@ function processMessage(
     for (const item of content) {
       if (item.type === 'tool_use') {
         const toolName = item.name
-        if (!data.toolUsageMap.has(toolName)) {
-          data.toolUsageMap.set(toolName, { total: 0, successful: 0 })
-        }
-        data.toolUsageMap.get(toolName)!.total++
-      }
-    }
-  }
+        const toolUseId = item.id
 
-  if (message.message?.role === 'user' && message.message?.content) {
-    const content = Array.isArray(message.message.content)
-      ? message.message.content
-      : [{ type: 'text', text: message.message.content }]
+        // Track tool_use_id to tool name mapping
+        if (toolUseId && toolName) {
+          toolUseIdMap.set(toolUseId, toolName)
 
-    for (const item of content) {
-      if (item.type === 'tool_result' && item.is_error !== true) {
-        const toolUseId = item.tool_use_id
-        for (const [toolName, stats] of data.toolUsageMap.entries()) {
-          if (toolUseId) {
-            stats.successful++
-            break
+          // Increment total uses
+          if (!data.toolUsageMap.has(toolName)) {
+            data.toolUsageMap.set(toolName, { total: 0, successful: 0 })
           }
+          data.toolUsageMap.get(toolName)!.total++
         }
       }
     }
@@ -278,11 +306,14 @@ export async function aggregateAllProjects(cutoffDate: Date): Promise<Aggregated
       projectData.sessionIds.add(sessionId)
       data.totalSessions++
 
+      // Track tool_use_id to tool name mapping for this session
+      const toolUseIdMap = new Map<string, string>()
+
       for (const message of messages) {
         const messageDate = new Date(message.timestamp)
         if (messageDate < cutoffDate) continue
 
-        processMessage(message, sessionId, project, data)
+        processMessage(message, sessionId, project, data, toolUseIdMap)
       }
     }
   }
@@ -323,11 +354,14 @@ export async function aggregateProject(projectId: string, cutoffDate: Date): Pro
 
     data.totalSessions++
 
+    // Track tool_use_id to tool name mapping for this session
+    const toolUseIdMap = new Map<string, string>()
+
     for (const message of messages) {
       const messageDate = new Date(message.timestamp)
       if (messageDate < cutoffDate) continue
 
-      processMessage(message, sessionId, projectId, data)
+      processMessage(message, sessionId, projectId, data, toolUseIdMap)
     }
   }
 

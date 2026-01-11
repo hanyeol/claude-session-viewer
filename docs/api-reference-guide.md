@@ -541,7 +541,167 @@ curl -X GET "http://localhost:3000/api/statistics/projects/my-project-Users-hany
 
 **Response:**
 
-Same structure as `GET /api/statistics/overall`, but filtered to the specified project.
+Returns the same `UsageStatistics` structure as the overall endpoint, but filtered to the specified project.
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `overview` | object | Session and message counts, token usage summary, date range |
+| `daily` | array | Daily activity breakdown (sessions, messages, tokens) - DailyUsageStats objects |
+| `byProject` | array | Per-project usage statistics (contains only the requested project) - ProjectUsageStats objects |
+| `byModel` | array | Per-model usage statistics - ModelUsageStats objects |
+| `cache` | object | Cache performance metrics (hit rate, savings) - CacheStats object |
+| `cost` | object | Cost breakdown in USD - CostBreakdown object |
+| `productivity` | object | Tool usage and agent adoption metrics - ProductivityStats object |
+| `trends` | object | Hourly and weekday activity patterns - TrendAnalysis object |
+
+**Example Response:**
+
+```json
+{
+  "overview": {
+    "tokenUsage": {
+      "inputTokens": 150000,
+      "cacheCreationTokens": 50000,
+      "cacheReadTokens": 80000,
+      "outputTokens": 25000,
+      "totalTokens": 305000
+    },
+    "sessionCount": 45,
+    "messageCount": 180,
+    "dateRange": {
+      "start": "2024-01-04T00:00:00.000Z",
+      "end": "2024-01-11T08:30:00.000Z"
+    }
+  },
+  "daily": [
+    {
+      "date": "2024-01-04",
+      "tokenUsage": {
+        "inputTokens": 21000,
+        "cacheCreationTokens": 7000,
+        "cacheReadTokens": 11000,
+        "outputTokens": 3500,
+        "totalTokens": 42500
+      },
+      "sessionCount": 6
+    }
+    // ... more daily entries
+  ],
+  "byProject": [
+    {
+      "id": "my-project-Users-hanyeol-Projects-myapp",
+      "name": "Projects-myapp",
+      "tokenUsage": {
+        "inputTokens": 150000,
+        "cacheCreationTokens": 50000,
+        "cacheReadTokens": 80000,
+        "outputTokens": 25000,
+        "totalTokens": 305000
+      },
+      "sessionCount": 45
+    }
+  ],
+  "byModel": [
+    {
+      "model": "claude-sonnet-4-20250514",
+      "tokenUsage": {
+        "inputTokens": 120000,
+        "cacheCreationTokens": 40000,
+        "cacheReadTokens": 64000,
+        "outputTokens": 20000,
+        "totalTokens": 244000
+      },
+      "messageCount": 144
+    },
+    {
+      "model": "claude-3-5-sonnet-20241022",
+      "tokenUsage": {
+        "inputTokens": 30000,
+        "cacheCreationTokens": 10000,
+        "cacheReadTokens": 16000,
+        "outputTokens": 5000,
+        "totalTokens": 61000
+      },
+      "messageCount": 36
+    }
+  ],
+  "cache": {
+    "totalCacheCreation": 50000,
+    "totalCacheRead": 80000,
+    "ephemeral5mTokens": 45000,
+    "ephemeral1hTokens": 5000,
+    "cacheHitRate": 61.54,
+    "estimatedSavings": 0.72
+  },
+  "cost": {
+    "inputCost": 0.45,
+    "outputCost": 0.375,
+    "cacheCreationCost": 0.1875,
+    "cacheReadCost": 0.024,
+    "totalCost": 1.0365
+  },
+  "productivity": {
+    "toolUsage": [
+      {
+        "toolName": "Edit",
+        "totalUses": 85,
+        "successfulUses": 82,
+        "successRate": 96.47
+      },
+      {
+        "toolName": "Read",
+        "totalUses": 120,
+        "successfulUses": 120,
+        "successRate": 100
+      }
+      // ... more tools
+    ],
+    "totalToolCalls": 350,
+    "agentSessions": 12,
+    "totalSessions": 45,
+    "agentUsageRate": 26.67
+  },
+  "trends": {
+    "byHour": [
+      {
+        "hour": 0,
+        "sessionCount": 2,
+        "messageCount": 8,
+        "tokenUsage": {
+          "inputTokens": 6000,
+          "cacheCreationTokens": 2000,
+          "cacheReadTokens": 3200,
+          "outputTokens": 1000,
+          "totalTokens": 12200
+        }
+      }
+      // ... hours 1-23
+    ],
+    "byWeekday": [
+      {
+        "weekday": 0,
+        "weekdayName": "Sunday",
+        "sessionCount": 5,
+        "messageCount": 20,
+        "tokenUsage": {
+          "inputTokens": 15000,
+          "cacheCreationTokens": 5000,
+          "cacheReadTokens": 8000,
+          "outputTokens": 2500,
+          "totalTokens": 30500
+        }
+      }
+      // ... Monday-Saturday
+    ]
+  }
+}
+```
+
+**Key Difference from Overall Endpoint:**
+- The `byProject` array contains only one entry (the requested project)
+- All statistics are scoped to the specified project only
 
 **Error Codes:**
 
@@ -551,9 +711,8 @@ Same structure as `GET /api/statistics/overall`, but filtered to the specified p
 | 500 | Internal server error | Server error while processing statistics |
 
 **Notes:**
-- The `byProject` array in response will contain only one entry (the requested project)
-- All other statistics are project-specific
 - Same filtering and calculation rules apply as the global statistics endpoint
+- Project name is derived from the directory name using the same transformation rules
 
 
 ---

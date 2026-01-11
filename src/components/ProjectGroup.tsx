@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 interface Session {
   id: string
   projectId: string
+  projectName?: string
   timestamp: string
   messages: any[]
   messageCount: number

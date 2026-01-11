@@ -44,7 +44,7 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
   const containerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
-  const projectRef = useRef<HTMLButtonElement>(null)
+  const projectRef = useRef<HTMLDivElement>(null)
   const metadataRef = useRef<HTMLDivElement>(null)
   const projectBadgeRef = useRef<HTMLButtonElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement | null>(null)
@@ -503,10 +503,10 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
             {session?.projectName || session?.projectId}
           </button>
         </div>
-        <button
+        <div
           ref={projectRef}
           onClick={() => session?.projectId && navigate(`/projects/${session.projectId}`)}
-          className="text-xl text-gray-300 transition-all duration-200 hover:text-white hover:underline cursor-pointer text-left"
+          className="text-xl text-gray-300 transition-all duration-200 hover:text-white hover:underline cursor-pointer"
           style={{
             opacity: 1,
             height: 'auto',
@@ -515,7 +515,7 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
           }}
         >
           {session?.projectName || session?.projectId}
-        </button>
+        </div>
         <div
           ref={metadataRef}
           className="flex items-center gap-3 text-sm text-gray-400 transition-all duration-200"

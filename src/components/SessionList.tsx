@@ -3,6 +3,7 @@ import ProjectGroup from './ProjectGroup'
 interface Session {
   id: string
   projectId: string
+  projectName?: string
   timestamp: string
   messages: any[]
   messageCount: number

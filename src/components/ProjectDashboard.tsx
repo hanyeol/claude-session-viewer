@@ -126,7 +126,18 @@ interface UsageStatistics {
 
 type DateRange = '7' | '30' | 'all'
 
-function ProjectDashboard() {
+interface ProjectInfo {
+  id: string
+  name: string
+  sessionCount: number
+  lastActivity: string
+}
+
+interface ProjectDashboardProps {
+  projectInfo?: ProjectInfo | null
+}
+
+function ProjectDashboard({ projectInfo }: ProjectDashboardProps) {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
   const [dateRange, setDateRange] = useState<DateRange>('7')
@@ -835,20 +846,14 @@ function ProjectDashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header - Always visible */}
         <div className="mb-2">
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              Dashboard
-            </button>
-            <span className="text-gray-600">/</span>
-            <span className="text-white font-semibold">
-              {data?.byProject[0]?.name || projectId}
-            </span>
-          </div>
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold">{data?.byProject[0]?.name || projectId}</h1>
+            {isLoading && !projectInfo ? (
+              <div className="h-10 bg-gray-700 rounded w-64 animate-pulse"></div>
+            ) : (
+              <h1 className="text-4xl font-bold">
+                {data?.byProject[0]?.name || projectInfo?.name || projectId}
+              </h1>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={() => setDateRange('7')}
