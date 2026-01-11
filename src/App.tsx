@@ -197,6 +197,8 @@ function AppContent() {
   const headerPadding = 12 + headerScale * 12 // 12px to 24px
   const titleSize = 1.125 + headerScale * 0.375 // 1.125rem (18px) to 1.5rem (24px)
   const subtitleOpacity = headerScale
+  const buttonRightOffset = 8 + headerScale * 6 // 8px to 14px from right
+  const buttonTopOffset = 8 + headerScale * 20 // 8px to 28px from top
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -211,29 +213,59 @@ function AppContent() {
         >
           {/* Fixed Header */}
           <div
-            className="border-b border-gray-700 flex-shrink-0 transition-all duration-200"
+            className="border-b border-gray-700 flex-shrink-0 transition-all duration-200 relative"
             style={{
               padding: `${headerPadding}px`,
+              paddingRight: `${buttonRightOffset + 44}px`,
             }}
           >
-            <h1
-              className="font-bold transition-all duration-200"
+            <div>
+              <h1
+                className="font-bold transition-all duration-200"
+                style={{
+                  fontSize: `${titleSize}rem`,
+                }}
+              >
+                Claude Sessions
+              </h1>
+              <p
+                className="text-sm text-gray-400 mt-1 transition-opacity duration-200"
+                style={{
+                  opacity: subtitleOpacity,
+                  height: subtitleOpacity > 0 ? 'auto' : 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {isLoading ? 'Loading...' : `${data?.projects.length || 0} project${data?.projects.length !== 1 ? 's' : ''}`}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className={`absolute flex items-center justify-center p-2 rounded-lg transition-all duration-200 ${
+                isDashboard
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+              }`}
               style={{
-                fontSize: `${titleSize}rem`,
+                top: `${buttonTopOffset}px`,
+                right: `${buttonRightOffset}px`,
               }}
+              title="Dashboard"
             >
-              Claude Sessions
-            </h1>
-            <p
-              className="text-sm text-gray-400 mt-1 transition-opacity duration-200"
-              style={{
-                opacity: subtitleOpacity,
-                height: subtitleOpacity > 0 ? 'auto' : 0,
-                overflow: 'hidden',
-              }}
-            >
-              {isLoading ? 'Loading...' : `${data?.projects.length || 0} project${data?.projects.length !== 1 ? 's' : ''}`}
-            </p>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </button>
           </div>
 
           {/* Scrollable Content */}
