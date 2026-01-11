@@ -19,6 +19,7 @@ interface Session {
 interface SessionDetailProps {
   sessionId: string
   sessionInfo?: Session | null
+  isProjectDashboard?: boolean
 }
 
 const TOC_WIDTH = 256 // 16rem / 64 * 4
@@ -26,7 +27,7 @@ const MIN_CONTENT_WIDTH = 640 // Minimum width for readable content
 const CONTENT_MAX_WIDTH = 896 // Tailwind max-w-4xl
 const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 
-export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailProps) {
+export default function SessionDetail({ sessionId, sessionInfo, isProjectDashboard = false }: SessionDetailProps) {
   const navigate = useNavigate()
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
@@ -506,9 +507,14 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
           </button>
           {/* Project Dashboard button */}
           <button
-            onClick={() => session?.projectId && navigate(`/projects/${session.projectId}`)}
-            className="flex items-center justify-center p-2 rounded-lg transition-colors flex-shrink-0 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
-            title="Project Dashboard"
+            onClick={() => !isProjectDashboard && session?.projectId && navigate(`/projects/${session.projectId}`)}
+            disabled={isProjectDashboard}
+            className={`flex items-center justify-center p-2 rounded-lg transition-colors flex-shrink-0 ${
+              isProjectDashboard
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            }`}
+            title={isProjectDashboard ? "Already on Project Dashboard" : "Project Dashboard"}
           >
             <svg
               className="w-5 h-5"

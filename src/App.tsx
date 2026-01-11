@@ -240,17 +240,18 @@ function AppContent() {
               </p>
             </div>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => !isDashboard && navigate('/dashboard')}
+              disabled={isDashboard}
               className={`absolute flex items-center justify-center p-2 rounded-lg transition-all duration-200 ${
                 isDashboard
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                   : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
               }`}
               style={{
                 top: `${buttonTopOffset}px`,
                 right: `${buttonRightOffset}px`,
               }}
-              title="Dashboard"
+              title={isDashboard ? "Already on Dashboard" : "Dashboard"}
             >
               <svg
                 className="w-5 h-5"
