@@ -24,9 +24,10 @@ interface SessionListProps {
   projects: ProjectGroup[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onNavigateToProject: (projectId: string) => void
 }
 
-export default function SessionList({ projects, selectedId, onSelect }: SessionListProps) {
+export default function SessionList({ projects, selectedId, onSelect, onNavigateToProject }: SessionListProps) {
   // Determine which project should be initially expanded based on selected session
   const getInitialExpanded = (project: ProjectGroup) => {
     if (!selectedId) return false
@@ -50,6 +51,7 @@ export default function SessionList({ projects, selectedId, onSelect }: SessionL
           sessions={project.sessions}
           selectedId={selectedId}
           onSelectSession={onSelect}
+          onNavigateToProject={onNavigateToProject}
           initialExpanded={getInitialExpanded(project)}
         />
       ))}

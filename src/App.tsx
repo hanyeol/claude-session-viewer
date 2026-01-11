@@ -68,6 +68,10 @@ function AppContent() {
     navigate(`/sessions/${id}`)
   }
 
+  const handleNavigateToProject = (projectId: string) => {
+    navigate(`/projects/${projectId}`)
+  }
+
   // Reset optimistic selection when URL params sync up
   useEffect(() => {
     if (optimisticSelectedId && optimisticSelectedId === selectedSessionId) {
@@ -289,6 +293,7 @@ function AppContent() {
                 projects={data?.projects || []}
                 selectedId={optimisticSelectedId || selectedSessionId}
                 onSelect={handleSelectSession}
+                onNavigateToProject={handleNavigateToProject}
               />
             )}
           </div>

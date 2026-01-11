@@ -21,19 +21,23 @@ interface ProjectGroupProps {
   sessions: Session[]
   selectedId: string | null
   onSelectSession: (id: string) => void
+  onNavigateToProject: (projectId: string) => void
   initialExpanded?: boolean
 }
 
 export default function ProjectGroup({
+  id,
   name,
   sessionCount,
   lastActivity,
   sessions,
   selectedId,
   onSelectSession,
+  onNavigateToProject,
   initialExpanded = false,
 }: ProjectGroupProps) {
   const [isExpanded, setIsExpanded] = useState(initialExpanded)
+  const [isContentVisible, setIsContentVisible] = useState(initialExpanded)
 
   // Auto-expand when a session in this project is selected
   useEffect(() => {
@@ -49,35 +53,97 @@ export default function ProjectGroup({
     }
   }, [selectedId, sessions])
 
+  const animationDuration = 200
+
+  useEffect(() => {
+    let timeoutId: number | undefined
+
+    if (isExpanded) {
+      setIsContentVisible(true)
+    } else {
+      timeoutId = window.setTimeout(() => {
+        setIsContentVisible(false)
+      }, animationDuration)
+    }
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [isExpanded])
+
   return (
     <div className="border-b border-gray-700">
       {/* Project Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="sticky top-0 z-10 w-full text-left p-4 bg-gray-900 hover:bg-gray-800 transition-colors flex items-center justify-between"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+      <div className="sticky top-0 z-10 bg-gray-900 relative">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full text-left p-4 hover:bg-gray-800 transition-all duration-200"
+        >
+          <div
+            className="flex items-start gap-2 transition-all duration-200"
+            style={{
+              paddingRight: isExpanded ? '36px' : '0',
+              transition: 'padding-right 200ms'
+            }}
+          >
             <svg
-              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <span className="font-semibold text-sm truncate">{name}</span>
+            <span className="font-semibold text-sm break-words">{name}</span>
           </div>
-          <div className="text-xs text-gray-400 mt-1 ml-6">
-            {sessionCount} session{sessionCount !== 1 ? 's' : ''} · Last activity{' '}
-            {format(new Date(lastActivity), 'PPp')}
+          <div className="text-xs text-gray-400 mt-1 ml-6 break-words">
+            {sessionCount} session{sessionCount !== 1 ? 's' : ''}
           </div>
-        </div>
-      </button>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onNavigateToProject(id)
+          }}
+          className={`absolute top-4 right-2 p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-all duration-200 z-10 ${
+            isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
+          }`}
+          title="Project Dashboard"
+          tabIndex={isExpanded ? 0 : -1}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          </svg>
+        </button>
+      </div>
 
       {/* Sessions List */}
-      {isExpanded && (
-        <div className="bg-gray-900/50">
+      <div
+        className="transition-all overflow-hidden"
+        style={{
+          maxHeight: isExpanded ? `${sessions.length * 150}px` : '0',
+          transitionDuration: `${animationDuration}ms`
+        }}
+      >
+        <div
+          className="bg-gray-900/50 transition-opacity"
+          style={{
+            opacity: isContentVisible ? 1 : 0,
+            transitionDuration: `${animationDuration}ms`
+          }}
+        >
           {sessions.map((session) => (
             <div key={session.id}>
               {/* Main Session */}
@@ -142,8 +208,8 @@ export default function ProjectGroup({
               )}
             </div>
           ))}
+          </div>
         </div>
-      )}
     </div>
   )
 }
