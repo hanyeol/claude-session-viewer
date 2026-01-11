@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, useParams, useNavigate, useLocation, Navi
 import SessionList from './components/SessionList'
 import SessionDetail from './components/SessionDetail'
 import Dashboard from './components/Dashboard'
+import ProjectDashboard from './components/ProjectDashboard'
 
 const queryClient = new QueryClient()
 
@@ -36,7 +37,9 @@ function AppContent() {
   const location = useLocation()
   const params = useParams()
   const selectedSessionId = params.sessionId || null
+  const projectId = params.projectId || null
   const isDashboard = location.pathname === '/dashboard'
+  const isProjectDashboard = location.pathname.startsWith('/projects/') && !location.pathname.includes('/sessions')
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
@@ -267,6 +270,8 @@ function AppContent() {
       <div className="flex-1 min-w-0">
         {isDashboard ? (
           <Dashboard />
+        ) : isProjectDashboard ? (
+          <ProjectDashboard />
         ) : selectedSessionId ? (
           <SessionDetail sessionId={selectedSessionId} sessionInfo={selectedSessionInfo} />
         ) : (
@@ -304,6 +309,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<AppContent />} />
+          <Route path="/projects/:projectId" element={<AppContent />} />
           <Route path="/sessions/:sessionId" element={<AppContent />} />
         </Routes>
       </BrowserRouter>

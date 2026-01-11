@@ -42,10 +42,29 @@ setTimeout(async () => {
 }, 1000);
 
 function shutdown(signal) {
+  console.log(`\nShutting down processes (${signal})...`);
+
   for (const child of children) {
-    child.kill(signal);
+    try {
+      child.kill(signal);
+    } catch (err) {
+      // Ignore errors if process is already dead
+    }
   }
+
+  // Force kill after 2 seconds if processes haven't exited
+  setTimeout(() => {
+    for (const child of children) {
+      try {
+        child.kill('SIGKILL');
+      } catch (err) {
+        // Ignore errors
+      }
+    }
+    process.exit(0);
+  }, 2000);
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("exit", () => shutdown("SIGTERM"));

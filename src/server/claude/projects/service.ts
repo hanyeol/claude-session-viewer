@@ -1,7 +1,7 @@
 import { stat } from 'fs/promises'
 import { join } from 'path'
 import type { ProjectGroup } from '../../types.js'
-import { listProjects, getProjectDisplayName } from './repository.js'
+import { listProjects, getProjectName } from './repository.js'
 import { getProjectSessions, sortSessionsByTimestamp } from '../sessions/service.js'
 
 /**
@@ -34,11 +34,11 @@ export async function getAllProjectsWithSessions(projectsDir: string): Promise<P
 
       if (sessions.length > 0) {
         sortSessionsByTimestamp(sessions)
-        const displayName = getProjectDisplayName(project)
+        const name = getProjectName(project)
 
         projectGroups.push({
-          name: project,
-          displayName,
+          id: project,
+          name,
           sessionCount: sessions.length,
           lastActivity: sessions[0].timestamp,
           sessions

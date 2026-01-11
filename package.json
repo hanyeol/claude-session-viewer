@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "dev": "node bin/dev.js",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "tsx watch --clear-screen=false src/server/index.ts",
     "dev:client": "vite",
     "build:server": "tsc -p tsconfig.server.json",
     "build:client": "vite build --outDir dist/client",

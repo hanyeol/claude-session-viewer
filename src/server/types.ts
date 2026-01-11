@@ -1,7 +1,8 @@
 // Session data model
 export interface Session {
   id: string
-  project: string
+  projectId: string
+  projectName?: string
   timestamp: string
   messages: any[]
   messageCount: number
@@ -11,14 +12,14 @@ export interface Session {
 }
 
 export interface ProjectGroup {
+  id: string
   name: string
-  displayName: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
 }
 
-// Token statistics types
+// Usage statistics types
 export interface TokenUsage {
   inputTokens: number
   cacheCreationTokens: number
@@ -27,22 +28,22 @@ export interface TokenUsage {
   totalTokens: number
 }
 
-export interface DailyTokenStats {
+export interface DailyUsageStats {
   date: string
-  usage: TokenUsage
+  tokenUsage: TokenUsage
   sessionCount: number
 }
 
-export interface ProjectTokenStats {
-  project: string
-  displayName: string
-  usage: TokenUsage
+export interface ProjectUsageStats {
+  id: string
+  name: string
+  tokenUsage: TokenUsage
   sessionCount: number
 }
 
-export interface ModelTokenStats {
+export interface ModelUsageStats {
   model: string
-  usage: TokenUsage
+  tokenUsage: TokenUsage
   messageCount: number
 }
 
@@ -82,7 +83,7 @@ export interface HourlyActivityStats {
   hour: number // 0-23
   sessionCount: number
   messageCount: number
-  usage: TokenUsage
+  tokenUsage: TokenUsage
 }
 
 export interface WeekdayActivityStats {
@@ -90,7 +91,7 @@ export interface WeekdayActivityStats {
   weekdayName: string
   sessionCount: number
   messageCount: number
-  usage: TokenUsage
+  tokenUsage: TokenUsage
 }
 
 export interface TrendAnalysis {
@@ -98,19 +99,19 @@ export interface TrendAnalysis {
   byWeekday: WeekdayActivityStats[]
 }
 
-export interface TokenStatistics {
+export interface UsageStatistics {
   overview: {
-    total: TokenUsage
-    totalSessions: number
-    totalMessages: number
+    tokenUsage: TokenUsage
+    sessionCount: number
+    messageCount: number
     dateRange: {
       start: string
       end: string
     }
   }
-  daily: DailyTokenStats[]
-  byProject: ProjectTokenStats[]
-  byModel: ModelTokenStats[]
+  daily: DailyUsageStats[]
+  byProject: ProjectUsageStats[]
+  byModel: ModelUsageStats[]
   cache: CacheStats
   cost: CostBreakdown
   productivity: ProductivityStats

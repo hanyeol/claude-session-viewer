@@ -1,8 +1,8 @@
 import type { TokenUsage, CostBreakdown, ModelPricing } from '../types.js'
 
 /**
- * Generic token statistics utilities
- * Pure calculation functions
+ * Token statistics utilities
+ * Pure calculation functions for token usage analysis
  */
 
 /**

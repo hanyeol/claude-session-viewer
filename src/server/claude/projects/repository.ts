@@ -36,7 +36,7 @@ export function getProjectPath(projectsDir: string, projectName: string): string
  * Remove user's home directory prefix from project directory name
  * e.g., "-Users-hanyeol-Projects-foo" → "Projects-foo"
  */
-export function getProjectDisplayName(projectDirName: string): string {
+export function getProjectName(projectDirName: string): string {
   const userHomePath = homedir().split('/').filter(Boolean).join('-')
   const prefix = `-${userHomePath}-`
 

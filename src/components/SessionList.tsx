@@ -2,7 +2,7 @@ import ProjectGroup from './ProjectGroup'
 
 interface Session {
   id: string
-  project: string
+  projectId: string
   timestamp: string
   messages: any[]
   messageCount: number
@@ -12,8 +12,8 @@ interface Session {
 }
 
 interface ProjectGroup {
+  id: string
   name: string
-  displayName: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
@@ -41,9 +41,9 @@ export default function SessionList({ projects, selectedId, onSelect }: SessionL
     <div>
       {projects.map((project) => (
         <ProjectGroup
-          key={project.name}
+          key={project.id}
+          id={project.id}
           name={project.name}
-          displayName={project.displayName}
           sessionCount={project.sessionCount}
           lastActivity={project.lastActivity}
           sessions={project.sessions}

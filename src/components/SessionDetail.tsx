@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import SessionToc from './SessionToc'
 
 interface Session {
   id: string
-  project: string
+  projectId: string
+  projectName?: string
   timestamp: string
   messages?: any[]
   messageCount: number
@@ -26,6 +27,7 @@ const CONTENT_MAX_WIDTH = 896 // Tailwind max-w-4xl
 const TOC_MIN_AVAILABLE_WIDTH = CONTENT_MAX_WIDTH + TOC_WIDTH
 
 export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailProps) {
+  const navigate = useNavigate()
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
   const [showToc, setShowToc] = useState(true)
   const [messagesContainerEl, setMessagesContainerEl] = useState<HTMLDivElement | null>(null)
@@ -42,10 +44,10 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
   const containerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
-  const projectRef = useRef<HTMLDivElement>(null)
+  const projectRef = useRef<HTMLButtonElement>(null)
   const metadataRef = useRef<HTMLDivElement>(null)
-  const projectBadgeRef = useRef<HTMLSpanElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const projectBadgeRef = useRef<HTMLButtonElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
   const lastScrollY = useRef(0)
   const { data, isLoading, error } = useQuery({
     queryKey: ['session', sessionId],
@@ -492,17 +494,19 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
             {session?.title || 'Untitled Session'}
           </h2>
           {/* Project badge - shown when scrolled */}
-          <span
+          <button
             ref={projectBadgeRef}
-            className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded transition-opacity duration-200"
+            onClick={() => session?.projectId && navigate(`/projects/${session.projectId}`)}
+            className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded transition-all duration-200 hover:bg-gray-600 hover:text-white"
             style={{ opacity: 0 }}
           >
-            {session?.project}
-          </span>
+            {session?.projectName || session?.projectId}
+          </button>
         </div>
-        <div
+        <button
           ref={projectRef}
-          className="text-xl text-gray-300 transition-all duration-200"
+          onClick={() => session?.projectId && navigate(`/projects/${session.projectId}`)}
+          className="text-xl text-gray-300 transition-all duration-200 hover:text-white hover:underline cursor-pointer text-left"
           style={{
             opacity: 1,
             height: 'auto',
@@ -510,8 +514,8 @@ export default function SessionDetail({ sessionId, sessionInfo }: SessionDetailP
             marginTop: '-2px',
           }}
         >
-          {session?.project}
-        </div>
+          {session?.projectName || session?.projectId}
+        </button>
         <div
           ref={metadataRef}
           className="flex items-center gap-3 text-sm text-gray-400 transition-all duration-200"

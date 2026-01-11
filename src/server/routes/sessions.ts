@@ -4,7 +4,7 @@ import { join } from 'path'
 import { CLAUDE_DIR } from '../constants.js'
 import { parseJsonl } from '../utils/jsonl.js'
 import { getAllProjectsWithSessions } from '../claude/projects/service.js'
-import { getProjectDisplayName } from '../claude/projects/repository.js'
+import { getProjectName } from '../claude/projects/repository.js'
 import { loadAgentSessionsFromFiles } from '../claude/sessions/service.js'
 import {
   collectAgentDescriptions,
@@ -46,7 +46,7 @@ export async function registerSessionRoutes(server: FastifyInstance) {
         try {
           const messages = await parseJsonl(sessionFile)
           const fileStat = await stat(sessionFile)
-          const projectName = getProjectDisplayName(project)
+          const projectName = project
           let title = extractSessionTitle(messages)
 
           // For agent sessions, find description from parent
@@ -74,7 +74,7 @@ export async function registerSessionRoutes(server: FastifyInstance) {
           if (!isAgent) {
             const agentDescriptions = collectAgentDescriptions(messages)
             if (agentDescriptions.size > 0) {
-              agentSessions = await loadAgentSessionsFromFiles(projectPath, projectName, agentDescriptions)
+              agentSessions = await loadAgentSessionsFromFiles(projectPath, project, agentDescriptions)
             }
           }
 
@@ -83,7 +83,8 @@ export async function registerSessionRoutes(server: FastifyInstance) {
           return {
             session: {
               id,
-              project: projectName,
+              projectId: projectName,
+              projectName: getProjectName(projectName),
               timestamp: fileStat.mtime.toISOString(),
               messages: messagesWithAgentIds,
               messageCount: messages.length,

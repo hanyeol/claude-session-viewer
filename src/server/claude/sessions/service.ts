@@ -4,7 +4,7 @@ import { listSessionFiles, readSessionFile } from './repository.js'
 import { shouldSkipSession, isAgentSession, isEmptyFile } from './filters.js'
 import { extractSessionTitle } from './title.js'
 import { collectAgentDescriptions, attachAgentSessionsToParent } from './agents.js'
-import { getProjectDisplayName } from '../projects/repository.js'
+import { getProjectName } from '../projects/repository.js'
 
 /**
  * Session service
@@ -28,7 +28,8 @@ export async function getProjectSessions(projectPath: string): Promise<Session[]
   const allSessions: Session[] = []
   const agentSessionsMap = new Map<string, Session>()
 
-  const projectName = getProjectDisplayName(projectPath.split('/').pop() || 'unknown')
+  const projectId = projectPath.split('/').pop() || 'unknown'
+  const projectName = getProjectName(projectId)
 
   // First pass: load all sessions
   for (const { filename, size, path } of sessionFiles) {
@@ -43,7 +44,8 @@ export async function getProjectSessions(projectPath: string): Promise<Session[]
 
       const session: Session = {
         id: sessionId,
-        project: projectName,
+        projectId,
+        projectName,
         timestamp,
         messages,
         messageCount: messages.length,
@@ -75,10 +77,11 @@ export async function getProjectSessions(projectPath: string): Promise<Session[]
  */
 export async function loadAgentSessionsFromFiles(
   projectPath: string,
-  projectName: string,
+  projectId: string,
   agentDescriptions: Map<string, string>
 ): Promise<Session[]> {
   const agentSessions: Session[] = []
+  const projectName = getProjectName(projectId)
 
   for (const [agentSessionId, description] of agentDescriptions) {
     const agentFile = join(projectPath, `${agentSessionId}.jsonl`)
@@ -86,7 +89,8 @@ export async function loadAgentSessionsFromFiles(
       const { messages, timestamp } = await readSessionFile(agentFile)
       agentSessions.push({
         id: agentSessionId,
-        project: projectName,
+        projectId,
+        projectName,
         timestamp,
         messages,
         messageCount: messages.length,

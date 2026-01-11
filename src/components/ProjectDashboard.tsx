@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Bar } from 'react-chartjs-2'
 import {
@@ -12,7 +13,7 @@ import {
   Legend
 } from 'chart.js'
 
-// Import shared components
+// Import shared components from Dashboard
 import { BarSection, StatCard, formatNumber, formatCost } from './dashboard/index'
 
 // Register Chart.js components
@@ -80,7 +81,7 @@ interface ProductivityStats {
   toolUsage: ToolUsageStats[]
   totalToolCalls: number
   agentSessions: number
-  totalSessions: number
+  sessionCount: number
   agentUsageRate: number
 }
 
@@ -125,16 +126,24 @@ interface UsageStatistics {
 
 type DateRange = '7' | '30' | 'all'
 
-function Dashboard() {
+function ProjectDashboard() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const navigate = useNavigate()
   const [dateRange, setDateRange] = useState<DateRange>('7')
 
   const { data, isLoading, error } = useQuery<UsageStatistics>({
-    queryKey: ['usage-statistics', dateRange],
+    queryKey: ['project-statistics', projectId, dateRange],
     queryFn: async () => {
-      const response = await fetch(`/api/statistics/overall?days=${dateRange}`)
-      if (!response.ok) throw new Error('Failed to fetch usage statistics')
+      const response = await fetch(`/api/statistics/projects/${projectId}?days=${dateRange}`)
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Project not found')
+        }
+        throw new Error('Failed to fetch project statistics')
+      }
       return response.json()
     },
+    enabled: !!projectId,
   })
 
   // Skeleton component for loading state
@@ -157,7 +166,15 @@ function Dashboard() {
     if (error) {
       return (
         <div className="flex items-center justify-center h-96">
-          <div className="text-red-400">Error loading statistics: {error.message}</div>
+          <div className="text-center">
+            <div className="text-red-400 mb-4">Error loading statistics: {error.message}</div>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       )
     }
@@ -170,7 +187,8 @@ function Dashboard() {
       )
     }
 
-    const { overview, daily, byProject, byModel, cache, cost, productivity, trends } = data
+    const { overview, daily, byModel, cache, cost, productivity, trends } = data
+    const projectInfo = data.byProject[0]
 
     // Calculate max for daily chart (using 95th percentile to avoid outliers)
     const sortedTokens = [...daily.map(d => d.tokenUsage.totalTokens)].sort((a, b) => a - b)
@@ -532,50 +550,6 @@ function Dashboard() {
           )}
         </div>
 
-        {/* By Project */}
-        <div className="bg-gray-800/50 rounded-lg p-6 mb-8 border border-gray-700">
-          <h2 className="text-2xl font-bold mb-6">Usage by Project</h2>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {byProject.slice(0, 10).map((project, index) => {
-              const totalTokens = byProject.reduce((sum, p) => sum + p.tokenUsage.totalTokens, 0)
-              const percentage = (project.tokenUsage.totalTokens / totalTokens) * 100
-
-              return (
-                <div key={index} className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
-                  <div className="flex justify-between items-baseline mb-2">
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-200">{project.name}</div>
-                      <div className="text-xs text-gray-500">{project.sessionCount} sessions</div>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      <div className="font-mono text-sm">{formatNumber(project.tokenUsage.totalTokens)}</div>
-                      <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-xs">
-                    <div className="text-left">
-                      <div className="text-gray-500">Input</div>
-                      <div className="text-blue-400 font-mono">{formatNumber(project.tokenUsage.inputTokens)}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-gray-500">Cache Create</div>
-                      <div className="text-purple-400 font-mono">{formatNumber(project.tokenUsage.cacheCreationTokens)}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-gray-500">Cache Read</div>
-                      <div className="text-cyan-400 font-mono">{formatNumber(project.tokenUsage.cacheReadTokens)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-gray-500">Output</div>
-                      <div className="text-green-400 font-mono">{formatNumber(project.tokenUsage.outputTokens)}</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
         {/* By Model */}
         <div className="bg-gray-800/50 rounded-lg p-6 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6">Usage by Model</h2>
@@ -861,8 +835,20 @@ function Dashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header - Always visible */}
         <div className="mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              Dashboard
+            </button>
+            <span className="text-gray-600">/</span>
+            <span className="text-white font-semibold">
+              {data?.byProject[0]?.name || projectId}
+            </span>
+          </div>
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold">Dashboard</h1>
+            <h1 className="text-4xl font-bold">{data?.byProject[0]?.name || projectId}</h1>
             <div className="flex gap-2">
               <button
                 onClick={() => setDateRange('7')}
@@ -926,4 +912,4 @@ function Dashboard() {
   )
 }
 
-export default Dashboard
+export default ProjectDashboard

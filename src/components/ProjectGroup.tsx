@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 
 interface Session {
   id: string
-  project: string
+  projectId: string
   timestamp: string
   messages: any[]
   messageCount: number
@@ -13,8 +13,8 @@ interface Session {
 }
 
 interface ProjectGroupProps {
+  id: string
   name: string
-  displayName: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
@@ -24,7 +24,7 @@ interface ProjectGroupProps {
 }
 
 export default function ProjectGroup({
-  displayName,
+  name,
   sessionCount,
   lastActivity,
   sessions,
@@ -65,7 +65,7 @@ export default function ProjectGroup({
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <span className="font-semibold text-sm truncate">{displayName}</span>
+            <span className="font-semibold text-sm truncate">{name}</span>
           </div>
           <div className="text-xs text-gray-400 mt-1 ml-6">
             {sessionCount} session{sessionCount !== 1 ? 's' : ''} · Last activity{' '}
