@@ -15,6 +15,7 @@ interface Session {
 interface ProjectGroup {
   id: string
   name: string
+  path: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
@@ -46,6 +47,7 @@ export default function SessionList({ projects, selectedId, onSelect, onNavigate
           key={project.id}
           id={project.id}
           name={project.name}
+          path={project.path}
           sessionCount={project.sessionCount}
           lastActivity={project.lastActivity}
           sessions={project.sessions}

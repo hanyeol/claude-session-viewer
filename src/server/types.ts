@@ -14,6 +14,7 @@ export interface Session {
 export interface ProjectGroup {
   id: string
   name: string
+  path: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]

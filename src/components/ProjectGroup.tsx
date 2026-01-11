@@ -16,6 +16,7 @@ interface Session {
 interface ProjectGroupProps {
   id: string
   name: string
+  path: string
   sessionCount: number
   lastActivity: string
   sessions: Session[]
@@ -28,6 +29,7 @@ interface ProjectGroupProps {
 export default function ProjectGroup({
   id,
   name,
+  path,
   sessionCount,
   lastActivity,
   sessions,

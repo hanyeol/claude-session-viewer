@@ -129,6 +129,7 @@ type DateRange = '7' | '30' | 'all'
 interface ProjectInfo {
   id: string
   name: string
+  path: string
   sessionCount: number
   lastActivity: string
 }
@@ -846,15 +847,22 @@ function ProjectDashboard({ projectInfo }: ProjectDashboardProps) {
       <div className="max-w-7xl mx-auto">
         {/* Header - Always visible */}
         <div className="mb-2">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-start justify-between mb-2">
             {isLoading && !projectInfo ? (
               <div className="h-10 bg-gray-700 rounded w-64 animate-pulse"></div>
             ) : (
-              <h1 className="text-4xl font-bold">
-                {data?.byProject[0]?.name || projectInfo?.name || projectId}
-              </h1>
+              <div>
+                <h1 className="text-4xl font-bold">
+                  {data?.byProject[0]?.name || projectInfo?.name || projectId}
+                </h1>
+                {projectInfo?.path && (
+                  <p className="text-sm text-gray-500 mt-1 font-mono">
+                    {projectInfo.path}
+                  </p>
+                )}
+              </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-1">
               <button
                 onClick={() => setDateRange('7')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

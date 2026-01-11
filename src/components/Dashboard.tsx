@@ -861,9 +861,9 @@ function Dashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header - Always visible */}
         <div className="mb-2">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-start justify-between mb-2">
             <h1 className="text-4xl font-bold">Dashboard</h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-1">
               <button
                 onClick={() => setDateRange('7')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
